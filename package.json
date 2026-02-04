@@ -1,0 +1,19 @@
+{
+    "name": "bookcat-monorepo",
+    "private": true,
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "build": "turbo run build",
+        "dev": "turbo run dev",
+        "lint": "turbo run lint",
+        "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    },
+    "devDependencies": {
+        "turbo": "latest",
+        "prettier": "latest"
+    },
+    "packageManager": "npm@10.0.0"
+}
