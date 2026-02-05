@@ -151,7 +151,7 @@ Error generating stack: `+o.message+`
  * See the LICENSE file in the root directory of this source tree.
  */const xm=X("Moon",[["path",{d:"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z",key:"a7tn18"}]]);/**
  * @license lucide-react v0.344.0 - ISC
- *
+ * 
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */const wm=X("Search",[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["path",{d:"m21 21-4.3-4.3",key:"1qie3q"}]]);/**

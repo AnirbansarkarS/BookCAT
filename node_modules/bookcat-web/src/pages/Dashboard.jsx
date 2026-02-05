@@ -1,11 +1,18 @@
-import React from 'react';
+import React from 'react'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Dashboard() {
+    const { profile, user } = useAuth()
+
+    const displayName = profile?.username || user?.email?.split('@')[0] || 'Reader'
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard</h1>
-                <p className="text-text-muted">Welcome back to your reading sanctuary.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Welcome back, {displayName}!
+                </h1>
+                <p className="text-text-muted">Your reading sanctuary awaits.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -23,5 +30,5 @@ export default function Dashboard() {
                 </div>
             </div>
         </div>
-    );
+    )
 }
