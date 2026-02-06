@@ -1,0 +1,1 @@
+{"version":3,"file":"BrowserPDF417Reader.js","sourceRoot":"","sources":["../../../src/readers/BrowserPDF417Reader.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;AAAA,0CAA8D;AAC9D,yDAAwD;AAGxD;;GAEG;AACH;IAAyC,uCAAiB;IACxD;;OAEG;IACH,6BACE,KAAgC,EAChC,OAAmC;eAEnC,kBAAM,IAAI,sBAAY,EAAE,EAAE,KAAK,EAAE,OAAO,CAAC;IAC3C,CAAC;IACH,0BAAC;AAAD,CAAC,AAVD,CAAyC,qCAAiB,GAUzD;AAVY,kDAAmB"}
