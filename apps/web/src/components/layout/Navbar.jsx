@@ -85,7 +85,7 @@ export function Navbar({ onMenuClick }) {
                                 className="w-8 h-8 rounded-full object-cover shadow-lg shadow-primary/20"
                             />
                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-wine flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">
                                 {getInitials()}
                             </div>
                         )}
