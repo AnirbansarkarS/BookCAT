@@ -12,6 +12,7 @@
     "dependencies": {
         "@supabase/supabase-js": "^2.95.0",
         "@tailwindcss/vite": "^4.1.18",
+        "@zxing/browser": "^0.1.5",
         "clsx": "^2.1.0",
         "lucide-react": "^0.344.0",
         "react": "^18.2.0",
