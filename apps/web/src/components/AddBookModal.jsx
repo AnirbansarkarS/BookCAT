@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Camera, Edit3, Loader2 } from 'lucide-react';
+import { X, Camera, Edit3, Loader2, Search } from 'lucide-react';
 import ISBNScanner from './ISBNScanner';
 import BookPreviewCard from './BookPreviewCard';
 import { fetchBookByISBN, checkDuplicateISBN, addBook } from '../services/bookService';
@@ -14,6 +14,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isFetchingISBN, setIsFetchingISBN] = useState(false);
 
     // Manual entry form state
     const [manualForm, setManualForm] = useState({
@@ -32,6 +33,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         setIsLoading(false);
         setError(null);
         setIsSaving(false);
+        setIsFetchingISBN(false);
         setManualForm({
             isbn: '',
             title: '',
@@ -105,10 +107,56 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         setManualForm(prev => ({ ...prev, [field]: value }));
     };
 
+    // New function to fetch book details from ISBN in manual mode
+    const handleFetchFromISBN = async () => {
+        if (!manualForm.isbn || !manualForm.isbn.trim()) {
+            setError('Please enter an ISBN first');
+            return;
+        }
+
+        setIsFetchingISBN(true);
+        setError(null);
+
+        try {
+            // Check for duplicates
+            const isDuplicate = await checkDuplicateISBN(user.id, manualForm.isbn);
+            if (isDuplicate) {
+                setError('A book with this ISBN is already in your library');
+                setIsFetchingISBN(false);
+                return;
+            }
+
+            // Fetch book data from Google Books API
+            const data = await fetchBookByISBN(manualForm.isbn);
+
+            if (!data) {
+                setError('Book not found in Google Books. You can still enter details manually.');
+                setIsFetchingISBN(false);
+                return;
+            }
+
+            // Populate form with fetched data
+            setManualForm({
+                isbn: data.isbn || manualForm.isbn,
+                title: data.title || '',
+                authors: data.authors || '',
+                published_year: data.published_year || '',
+                description: data.description || '',
+                cover_url: data.cover_url || '',
+            });
+
+            setIsFetchingISBN(false);
+        } catch (err) {
+            console.error('Error fetching book:', err);
+            setError('Failed to fetch book data. You can still enter details manually.');
+            setIsFetchingISBN(false);
+        }
+    };
+
     const handleManualSubmit = async (e) => {
         e.preventDefault();
 
-        if (!manualForm.title) {
+        if (!manualForm.title || !manualForm.title.trim()) {
             setError('Title is required');
             return;
         }
@@ -118,7 +166,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
 
         try {
             // Check for duplicates if ISBN is provided
-            if (manualForm.isbn) {
+            if (manualForm.isbn && manualForm.isbn.trim()) {
                 const isDuplicate = await checkDuplicateISBN(user.id, manualForm.isbn);
                 if (isDuplicate) {
                     setError('A book with this ISBN is already in your library');
@@ -128,8 +176,12 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             }
 
             await addBook(user.id, {
-                ...manualForm,
-                isbn: manualForm.isbn || null,
+                isbn: manualForm.isbn?.trim() || null,
+                title: manualForm.title.trim(),
+                authors: manualForm.authors?.trim() || null,
+                published_year: manualForm.published_year?.trim() || null,
+                description: manualForm.description?.trim() || null,
+                cover_url: manualForm.cover_url?.trim() || null,
                 source: 'manual',
                 status: 'Want to Read',
                 progress: 0,
@@ -254,17 +306,46 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                                     </div>
                                 )}
 
+                                {/* ISBN field with fetch button */}
                                 <div>
                                     <label className="text-sm font-medium text-text-secondary block mb-2">
                                         ISBN (Optional)
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={manualForm.isbn}
-                                        onChange={(e) => handleManualFormChange('isbn', e.target.value)}
-                                        placeholder="e.g., 9780140449136"
-                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={manualForm.isbn}
+                                            onChange={(e) => handleManualFormChange('isbn', e.target.value)}
+                                            placeholder="e.g., 9780140449136"
+                                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleFetchFromISBN}
+                                            disabled={isFetchingISBN || !manualForm.isbn}
+                                            className={cn(
+                                                "px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap",
+                                                manualForm.isbn && !isFetchingISBN
+                                                    ? "bg-primary hover:bg-primary/90 text-white"
+                                                    : "bg-white/5 text-text-muted cursor-not-allowed"
+                                            )}
+                                        >
+                                            {isFetchingISBN ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    Fetching...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Search size={16} />
+                                                    Fetch Info
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-text-muted mt-1">
+                                        Enter ISBN and click "Fetch Info" to auto-fill book details
+                                    </p>
                                 </div>
 
                                 <div>

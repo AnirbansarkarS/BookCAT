@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS public.books (
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
     source TEXT DEFAULT 'manual' CHECK (source IN ('manual', 'scan')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(user_id, isbn)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Enable Row Level Security
@@ -51,6 +50,12 @@ CREATE TRIGGER set_books_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- Create index for faster queries
+-- Create indexes for faster queries
 CREATE INDEX idx_books_user_id ON public.books(user_id);
 CREATE INDEX idx_books_isbn ON public.books(isbn);
+
+-- Create partial unique index: only enforce uniqueness when ISBN is NOT NULL
+-- This allows multiple books without ISBNs while preventing duplicate ISBNs per user
+CREATE UNIQUE INDEX idx_books_user_isbn_unique 
+    ON public.books(user_id, isbn) 
+    WHERE isbn IS NOT NULL;
