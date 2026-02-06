@@ -110,7 +110,7 @@ export default function Profile() {
                                     className="w-32 h-32 rounded-full object-cover border-4 border-primary/20"
                                 />
                             ) : (
-                                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center border-4 border-primary/20">
+                                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-wine flex items-center justify-center border-4 border-primary/20">
                                     <User className="text-white" size={48} />
                                 </div>
                             )}
@@ -172,7 +172,7 @@ export default function Profile() {
                                     <button
                                         onClick={handleSave}
                                         disabled={loading}
-                                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-wine text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Save size={18} />
                                         {loading ? 'Saving...' : 'Save Changes'}
@@ -189,7 +189,7 @@ export default function Profile() {
                             ) : (
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="px-6 py-3 bg-gradient-to-r from-primary to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all duration-300"
+                                    className="px-6 py-3 bg-gradient-to-r from-primary to-wine text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all duration-300"
                                 >
                                     Edit Profile
                                 </button>

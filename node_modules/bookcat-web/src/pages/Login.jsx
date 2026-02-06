@@ -4,111 +4,472 @@ import { useAuth } from '../hooks/useAuth'
 import { BookOpen, Mail, Lock, AlertCircle } from 'lucide-react'
 
 export default function Login() {
-    const navigate = useNavigate()
-    const { signIn } = useAuth()
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [error, setError] = useState('')
-    const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  const { signIn } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [lampOn, setLampOn] = useState(false)
+  const [pulling, setPulling] = useState(false)
+  const [ropeStretch, setRopeStretch] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startY, setStartY] = useState(0)
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-        setError('')
-        setLoading(true)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
-        const { error: signInError } = await signIn(email, password)
+    const { error: signInError } = await signIn(email, password)
 
-        if (signInError) {
-            setError(signInError.message)
-            setLoading(false)
-        } else {
-            navigate('/dashboard')
-        }
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+    } else {
+      navigate('/dashboard')
     }
+  }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
-                            <BookOpen className="text-white" size={24} />
-                        </div>
-                        <h1 className="text-3xl font-bold text-white">
-                            Book<span className="text-primary">Cat</span>
-                        </h1>
-                    </div>
-                    <p className="text-text-muted">Welcome back to your reading sanctuary</p>
+  const handleLampPull = () => {
+    setPulling(true)
+    setTimeout(() => {
+      setLampOn(!lampOn)
+      setPulling(false)
+    }, 300)
+  }
+
+  const handleMouseDown = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+    const clientY = e.clientY || e.touches?.[0]?.clientY || 0
+    setStartY(clientY)
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return
+    
+    e.preventDefault()
+    const currentY = e.clientY || e.touches?.[0]?.clientY || 0
+    const deltaY = currentY - startY
+    
+    // Limit stretch to maximum 80px
+    const stretch = Math.max(0, Math.min(deltaY, 80))
+    setRopeStretch(stretch)
+  }
+
+  const handleMouseUp = () => {
+    if (!isDragging) return
+    
+    setIsDragging(false)
+    
+    // Toggle lamp if pulled more than 30px
+    if (ropeStretch > 30) {
+      setPulling(true)
+      setTimeout(() => {
+        setLampOn(!lampOn)
+        setPulling(false)
+      }, 200)
+    }
+    
+    // Elastic snap back animation
+    let currentStretch = ropeStretch
+    const snapInterval = setInterval(() => {
+      currentStretch = currentStretch * 0.7
+      if (currentStretch <= 1) {
+        clearInterval(snapInterval)
+        setRopeStretch(0)
+      } else {
+        setRopeStretch(currentStretch)
+      }
+    }, 16) // ~60fps
+  }
+
+  // Add global event listeners for drag
+  React.useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      window.addEventListener('touchmove', handleMouseMove)
+      window.addEventListener('touchend', handleMouseUp)
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+        window.removeEventListener('touchmove', handleMouseMove)
+        window.removeEventListener('touchend', handleMouseUp)
+      }
+    }
+  }, [isDragging, ropeStretch, startY, lampOn])
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4 overflow-hidden relative">
+      {/* Ambient Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full transition-all duration-1000 ${
+          lampOn 
+            ? 'bg-emerald-500/20 blur-[120px] opacity-100' 
+            : 'bg-emerald-500/0 blur-[120px] opacity-0'
+        }`} />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.05),transparent_50%)]" />
+      </div>
+
+      {/* Stars */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(50)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+              opacity: Math.random() * 0.7 + 0.3,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Lamp Container */}
+        <div className="relative mb-8 flex flex-col items-center">
+          {/* Ceiling Mount Cord */}
+          <div className="relative h-16 flex flex-col items-center">
+            <div className="w-0.5 h-16 bg-gradient-to-b from-slate-600 to-slate-700" />
+          </div>
+
+          {/* Lamp Fixture */}
+          <div className="relative">
+            {/* Lamp Top */}
+            <div className="w-4 h-3 bg-gradient-to-b from-slate-700 to-slate-800 rounded-t-sm mx-auto" />
+            
+            {/* Lamp Shade */}
+            <div className={`relative w-32 h-24 transition-all duration-700 ${
+              lampOn ? 'drop-shadow-[0_0_30px_rgba(16,185,129,0.6)]' : ''
+            }`}>
+              {/* Outer Shade */}
+              <div className="absolute inset-0">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="shadeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor={lampOn ? '#10b981' : '#2d5f4d'} />
+                      <stop offset="100%" stopColor={lampOn ? '#059669' : '#1e3a2f'} />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M 20 10 L 10 90 L 90 90 L 80 10 Z"
+                    fill="url(#shadeGradient)"
+                    stroke={lampOn ? '#34d399' : '#1f4037'}
+                    strokeWidth="1"
+                  />
+                </svg>
+              </div>
+
+              {/* Inner Glow */}
+              {lampOn && (
+                <div className="absolute inset-0 flex items-end justify-center pb-2">
+                  <div className="w-20 h-16 bg-gradient-radial from-yellow-200/80 via-emerald-300/40 to-transparent rounded-full blur-sm animate-pulse-slow" />
                 </div>
+              )}
 
-                {/* Login Form */}
-                <div className="bg-surface/50 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-                    <h2 className="text-2xl font-bold text-white mb-6">Sign In</h2>
-
-                    {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-                            <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={20} />
-                            <p className="text-red-400 text-sm">{error}</p>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-2">
-                                Email
-                            </label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className="w-full pl-12 pr-4 py-3 bg-background/50 border border-white/10 rounded-xl text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                                    placeholder="you@example.com"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-2">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-                                <input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    className="w-full pl-12 pr-4 py-3 bg-background/50 border border-white/10 rounded-xl text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-3 px-4 bg-gradient-to-r from-primary to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? 'Signing in...' : 'Sign In'}
-                        </button>
-                    </form>
-
-                    <div className="mt-6 text-center">
-                        <p className="text-text-muted text-sm">
-                            Don't have an account?{' '}
-                            <Link to="/signup" className="text-primary hover:text-primary/80 font-medium transition-colors">
-                                Sign up
-                            </Link>
-                        </p>
-                    </div>
-                </div>
+              {/* Light Bulb Glow */}
+              {lampOn && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-yellow-200 rounded-full blur-md opacity-80 animate-flicker" />
+              )}
             </div>
+
+            {/* Light Rays */}
+            {lampOn && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-40 h-40 pointer-events-none">
+                <div className="absolute inset-0 bg-gradient-to-b from-emerald-400/30 via-emerald-500/10 to-transparent opacity-60 animate-light-sweep" 
+                     style={{ clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)' }} />
+              </div>
+            )}
+
+            {/* Pull Chain - Below Lamp */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 flex flex-col items-center pt-2">
+              {/* Elastic Rope */}
+              <div 
+                className="relative transition-all"
+                style={{ 
+                  height: `${48 + ropeStretch}px`,
+                  transitionDuration: isDragging ? '0ms' : '300ms'
+                }}
+              >
+                {/* Main rope with elastic stretch effect */}
+                <svg 
+                  width="20" 
+                  height={48 + ropeStretch} 
+                  className="absolute left-1/2 -translate-x-1/2"
+                  style={{ overflow: 'visible' }}
+                >
+                  <defs>
+                    <linearGradient id="ropeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#475569" />
+                      <stop offset="50%" stopColor="#64748b" />
+                      <stop offset="100%" stopColor="#475569" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Rope path with bezier curve for realistic sag */}
+                  <path
+                    d={`M 10 0 Q 10 ${(48 + ropeStretch) * 0.3} 10 ${(48 + ropeStretch) * 0.5} T 10 ${48 + ropeStretch}`}
+                    stroke="url(#ropeGradient)"
+                    strokeWidth={ropeStretch > 20 ? 1.5 : 2}
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  
+                  {/* Shadow/depth effect */}
+                  <path
+                    d={`M 10 0 Q 10 ${(48 + ropeStretch) * 0.3} 10 ${(48 + ropeStretch) * 0.5} T 10 ${48 + ropeStretch}`}
+                    stroke="rgba(71, 85, 105, 0.3)"
+                    strokeWidth={ropeStretch > 20 ? 2 : 2.5}
+                    fill="none"
+                    strokeLinecap="round"
+                    className="blur-[1px]"
+                  />
+                </svg>
+
+                {/* Stretch indicator lines (appears when stretched) */}
+                {ropeStretch > 10 && (
+                  <div className="absolute inset-0 flex flex-col justify-around px-2 opacity-30">
+                    {[...Array(Math.floor(ropeStretch / 15))].map((_, i) => (
+                      <div 
+                        key={i} 
+                        className="h-px bg-slate-400"
+                        style={{ 
+                          width: `${4 + Math.sin(i) * 2}px`,
+                          marginLeft: 'auto',
+                          marginRight: 'auto'
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pull Handle/Bead */}
+              <div 
+                className={`cursor-grab active:cursor-grabbing transition-all ${
+                  isDragging ? 'scale-110' : 'scale-100'
+                } group`}
+                style={{
+                  transform: `translateY(${ropeStretch}px) scale(${isDragging ? 1.1 : 1})`,
+                  transition: isDragging ? 'none' : 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleMouseDown}
+              >
+                {/* Bead/Handle with glow effect */}
+                <div className={`relative w-6 h-6 rounded-full border-2 transition-all duration-300 ${
+                  lampOn 
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-300 shadow-lg shadow-emerald-500/50' 
+                    : 'bg-gradient-to-br from-slate-600 to-slate-700 border-slate-500 group-hover:border-slate-400 group-hover:shadow-lg group-hover:shadow-slate-500/50'
+                }`}>
+                  {/* Highlight */}
+                  <div className="w-2 h-2 bg-white/40 rounded-full ml-1.5 mt-1.5" />
+                  
+                  {/* Stretch glow effect */}
+                  {ropeStretch > 20 && (
+                    <div className="absolute inset-0 rounded-full bg-white/20 animate-pulse" />
+                  )}
+                </div>
+
+                {/* Pull hint indicator - only when lamp is off and not dragging */}
+                {!lampOn && !isDragging && ropeStretch === 0 && (
+                  <div 
+                    id="pull-hint"
+                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1 text-emerald-400/70 text-xs font-medium">
+                      <svg className="w-3 h-3 animate-bounce-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      Pull & drag me
+                    </div>
+                  </div>
+                )}
+                
+                {/* Stretching feedback */}
+                {isDragging && ropeStretch > 10 && (
+                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                    <div className="text-emerald-400 text-xs font-medium animate-pulse">
+                      {ropeStretch > 30 ? 'Release to toggle!' : 'Keep pulling...'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-    )
+
+        {/* Login Card */}
+        <div className={`transition-all duration-700 transform ${
+          lampOn 
+            ? 'opacity-100 translate-y-0 scale-100' 
+            : 'opacity-0 translate-y-8 scale-95'
+        }`}>
+          <div className={`bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border transition-all duration-700 ${
+            lampOn 
+              ? 'border-emerald-500/30 shadow-emerald-500/20' 
+              : 'border-white/10'
+          }`}>
+            {/* Logo */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/30">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
+                BookCat
+              </h1>
+              <p className="text-slate-400 text-sm">
+                Welcome back to your reading sanctuary
+              </p>
+            </div>
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-white mb-6 text-center">
+                  Sign In
+                </h2>
+
+                {error && (
+                  <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3 animate-shake">
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-300 text-sm">{error}</p>
+                  </div>
+                )}
+
+                {/* Email Field */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Email
+                  </label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Password
+                  </label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Signing in...
+                    </span>
+                  ) : (
+                    'Sign In'
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Sign Up Link */}
+            <p className="mt-6 text-center text-sm text-slate-400">
+              Don't have an account?{' '}
+              <Link
+                to="/signup"
+                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+              >
+                Sign up
+              </Link>
+            </p>
+          </div>
+
+          {/* Light is on message */}
+          {lampOn && (
+            <p className="text-center mt-4 text-emerald-400/60 text-sm">
+              ✨ Light is on - Welcome!
+            </p>
+          )}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 1; }
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 0.9; }
+        }
+        @keyframes flicker {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; }
+        }
+        @keyframes light-sweep {
+          0% { opacity: 0.4; }
+          50% { opacity: 0.6; }
+          100% { opacity: 0.4; }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes bounce-fast {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        .animate-twinkle {
+          animation: twinkle 3s ease-in-out infinite;
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+        .animate-flicker {
+          animation: flicker 0.15s ease-in-out infinite;
+        }
+        .animate-light-sweep {
+          animation: light-sweep 3s ease-in-out infinite;
+        }
+        .animate-shake {
+          animation: shake 0.5s ease-in-out;
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 2s ease-in-out infinite;
+        }
+        .animate-bounce-fast {
+          animation: bounce-fast 0.5s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
+  )
 }
