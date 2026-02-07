@@ -22,6 +22,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         title: '',
         authors: '',
         published_year: '',
+        total_pages: '',
         description: '',
         cover_url: '',
     });
@@ -39,6 +40,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             title: '',
             authors: '',
             published_year: '',
+            total_pages: '',
             description: '',
             cover_url: '',
         });
@@ -141,6 +143,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                 title: data.title || '',
                 authors: data.authors || '',
                 published_year: data.published_year || '',
+                total_pages: data.pageCount || '', // Google Books API returns pageCount
                 description: data.description || '',
                 cover_url: data.cover_url || '',
             });
@@ -180,6 +183,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                 title: manualForm.title.trim(),
                 authors: manualForm.authors?.trim() || null,
                 published_year: manualForm.published_year?.trim() || null,
+                total_pages: manualForm.total_pages ? parseInt(manualForm.total_pages) : null,
                 description: manualForm.description?.trim() || null,
                 cover_url: manualForm.cover_url?.trim() || null,
                 source: 'manual',

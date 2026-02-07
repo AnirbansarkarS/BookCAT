@@ -56,7 +56,7 @@ export async function getUserBooks(userId) {
 /**
  * Add a new book to the database
  * @param {string} userId - The user's ID
- * @param {object} bookData - Book data object
+ * @param {object} bookData - Book data object (title, authors, cover_url, total_pages, etc.)
  * @returns {Promise<object>} The created book record
  */
 export async function addBook(userId, bookData) {
@@ -84,14 +84,21 @@ export async function addBook(userId, bookData) {
  * Update book status and progress
  * @param {string} bookId - The book's ID
  * @param {string} status - New status
- * @param {number} progress - Reading progress (0-100)
+ * @param {number} progress - Reading progress percentage (0-100)
+ * @param {number} currentPage - Current page number (optional)
  * @returns {Promise<object>} The updated book record
  */
-export async function updateBookStatus(bookId, status, progress) {
+export async function updateBookStatus(bookId, status, progress, currentPage = null) {
     try {
+        const updateData = { status, progress };
+
+        if (currentPage !== null) {
+            updateData.current_page = currentPage;
+        }
+
         const { data, error } = await supabase
             .from('books')
-            .update({ status, progress })
+            .update(updateData)
             .eq('id', bookId)
             .select()
             .single();
@@ -100,6 +107,33 @@ export async function updateBookStatus(bookId, status, progress) {
         return data;
     } catch (error) {
         console.error('Error updating book status:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update arbitrary book fields
+ * @param {string} bookId - The book's ID
+ * @param {object} updates - Fields to update
+ * @returns {Promise<object>} The updated book record
+ */
+export async function updateBookDetails(bookId, updates) {
+    try {
+        const updateData = Object.fromEntries(
+            Object.entries(updates || {}).filter(([, value]) => value !== undefined)
+        );
+
+        const { data, error } = await supabase
+            .from('books')
+            .update(updateData)
+            .eq('id', bookId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error updating book details:', error);
         throw error;
     }
 }
@@ -145,5 +179,67 @@ export async function checkDuplicateISBN(userId, isbn) {
     } catch (error) {
         console.error('Error checking duplicate ISBN:', error);
         return false;
+    }
+}
+
+/**
+ * Log a reading session
+ * @param {string} userId - The user's ID
+ * @param {string} bookId - The book's ID
+ * @param {number} durationSeconds - Duration in seconds
+ * @param {number} pagesRead - Number of pages read in this session
+ * @returns {Promise<object>} The created session record
+ */
+export async function logReadingSession(userId, bookId, durationSeconds, pagesRead) {
+    try {
+        const { data, error } = await supabase
+            .from('reading_sessions')
+            .insert([
+                {
+                    user_id: userId,
+                    book_id: bookId,
+                    duration_seconds: durationSeconds,
+                    pages_read: pagesRead,
+                    end_time: new Date().toISOString()
+                }
+            ])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error logging reading session:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get reading stats for a user
+ * @param {string} userId - The user's ID
+ * @returns {Promise<object>} Aggregated stats
+ */
+export async function getReadingStats(userId) {
+    try {
+        const { data: sessions, error } = await supabase
+            .from('reading_sessions')
+            .select('duration_seconds, pages_read, created_at')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        const totalTime = sessions?.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0) || 0;
+        const totalPages = sessions?.reduce((acc, curr) => acc + (curr.pages_read || 0), 0) || 0;
+
+        // Calculate streaks or other stats here if needed
+
+        return {
+            totalSeconds: totalTime,
+            totalPages,
+            sessionCount: sessions?.length || 0
+        };
+    } catch (error) {
+        console.error('Error fetching reading stats:', error);
+        return { totalSeconds: 0, totalPages: 0, sessionCount: 0 };
     }
 }
