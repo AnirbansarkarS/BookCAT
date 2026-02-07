@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Clock, TrendingUp, Award, ArrowRight } from 'lucide-react'
+import { BookOpen, Clock, TrendingUp, Award, ArrowRight, Play } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { getUserBooks, getReadingStats } from '../services/bookService'
+import { supabase } from '../lib/supabase'
 
 export default function Dashboard() {
     const { profile, user } = useAuth()
@@ -31,6 +32,46 @@ export default function Dashboard() {
         }
 
         loadDashboardData()
+    }, [user])
+
+    useEffect(() => {
+        if (!user) return
+
+        const refreshStats = async () => {
+            try {
+                const statsData = await getReadingStats(user.id)
+                setStats(statsData)
+            } catch (error) {
+                console.error('Error refreshing stats:', error)
+            }
+        }
+
+        const refreshReads = async () => {
+            try {
+                const booksData = await getUserBooks(user.id)
+                setCurrentReads(booksData.filter(b => b.status === 'Reading').slice(0, 3))
+            } catch (error) {
+                console.error('Error refreshing reads:', error)
+            }
+        }
+
+        const channel = supabase
+            .channel(`dashboard-${user.id}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'reading_sessions', filter: `user_id=eq.${user.id}` },
+                () => refreshStats()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'books', filter: `user_id=eq.${user.id}` },
+                () => refreshReads()
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [user])
 
     const formatTime = (seconds) => {

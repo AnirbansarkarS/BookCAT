@@ -112,6 +112,33 @@ export async function updateBookStatus(bookId, status, progress, currentPage = n
 }
 
 /**
+ * Update arbitrary book fields
+ * @param {string} bookId - The book's ID
+ * @param {object} updates - Fields to update
+ * @returns {Promise<object>} The updated book record
+ */
+export async function updateBookDetails(bookId, updates) {
+    try {
+        const updateData = Object.fromEntries(
+            Object.entries(updates || {}).filter(([, value]) => value !== undefined)
+        );
+
+        const { data, error } = await supabase
+            .from('books')
+            .update(updateData)
+            .eq('id', bookId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error updating book details:', error);
+        throw error;
+    }
+}
+
+/**
  * Delete a book
  * @param {string} bookId - The book's ID
  * @returns {Promise<void>}
