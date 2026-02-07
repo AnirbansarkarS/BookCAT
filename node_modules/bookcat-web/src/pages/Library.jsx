@@ -3,7 +3,7 @@ import { BookOpen, CheckCircle, Clock, Plus, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
-import { getUserBooks } from '../services/bookService';
+import { getUserBooks, updateBookStatus } from '../services/bookService';
 import AddBookModal from '../components/AddBookModal';
 
 const statusConfig = {
@@ -42,6 +42,25 @@ export default function Library() {
 
     const handleBookAdded = () => {
         loadBooks(); // Refresh the book list
+    };
+
+    const handleUpdateProgress = async (e, book, newPage) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const page = parseInt(newPage);
+        if (isNaN(page) || page < 0) return;
+
+        const total = book.total_pages || 100; // Fallback if no total pages
+        const validPage = Math.min(page, total);
+        const progress = Math.round((validPage / total) * 100);
+
+        try {
+            await updateBookStatus(book.id, book.status, progress, validPage);
+            // Optimistic update or reload
+            setBooks(books.map(b => b.id === book.id ? { ...b, current_page: validPage, progress } : b));
+        } catch (err) {
+            console.error('Failed to update progress:', err);
+        }
     };
 
     const filteredBooks = filter === 'All' ? books : books.filter(b => b.status === filter);
@@ -154,13 +173,30 @@ export default function Library() {
                                     </div>
 
                                     {book.status === 'Reading' && (
-                                        <div className="space-y-1 pt-2">
+                                        <div className="space-y-2 pt-2">
                                             <div className="flex justify-between text-xs text-text-muted">
-                                                <span>Progress</span>
+                                                <span>{book.current_page || 0} / {book.total_pages || '?'} pages</span>
                                                 <span>{book.progress}%</span>
                                             </div>
                                             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                                                 <div className="h-full bg-primary" style={{ width: `${book.progress}%` }} />
+                                            </div>
+
+                                            {/* Quick Update Input */}
+                                            <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="number"
+                                                    defaultValue={book.current_page || 0}
+                                                    className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-center focus:outline-none focus:border-primary/50"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleUpdateProgress(e, book, e.target.value);
+                                                            e.target.blur();
+                                                        }
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <span className="text-xs text-text-muted">pages</span>
                                             </div>
                                         </div>
                                     )}

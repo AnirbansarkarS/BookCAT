@@ -134,6 +134,21 @@ export default function BookPreviewCard({ bookData, isLoading, error, onSave, on
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
                     </div>
+
+                    {/* Total Pages */}
+                    <div>
+                        <label className="text-sm font-medium text-text-secondary flex items-center gap-2 mb-2">
+                            <FileText size={16} />
+                            Total Pages
+                        </label>
+                        <input
+                            type="number"
+                            value={editedData.total_pages || ''}
+                            onChange={(e) => handleChange('total_pages', e.target.value)}
+                            placeholder="e.g. 350"
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                    </div>
                 </div>
             </div>
 

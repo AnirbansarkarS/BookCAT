@@ -1,158 +1,272 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Moon, Sun, Type, Minimize, Maximize, Clock, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Clock, BookOpen, CheckCircle, Pause, Play, StopCircle, Save, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
+import { getUserBooks, updateBookStatus, logReadingSession } from '../services/bookService';
+import { supabase } from '../lib/supabase';
 
 export default function ReadingMode() {
-    const [theme, setTheme] = useState('dark'); // dark, sepia, light
-    const [fontSize, setFontSize] = useState(18);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const { bookId } = useParams();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    // State
+    const [book, setBook] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isTimerActive, setIsTimerActive] = useState(false);
     const [timer, setTimer] = useState(0);
-    const [isTimerActive, setIsTimerActive] = useState(true);
+    const [sessionState, setSessionState] = useState('opening'); // opening, reading, saving, finished
+    const [endPage, setEndPage] = useState('');
+    const [note, setNote] = useState('');
+    const [startTime, setStartTime] = useState(null);
+
+    // Animation refs
+    const bookRef = useRef(null);
+
+    useEffect(() => {
+        loadBook();
+    }, [bookId, user]);
 
     useEffect(() => {
         let interval;
-        if (isTimerActive) {
-            interval = setInterval(() => setTimer(t => t + 1), 1000);
+        if (isTimerActive && sessionState === 'reading') {
+            interval = setInterval(() => {
+                setTimer(t => t + 1);
+            }, 1000);
         }
         return () => clearInterval(interval);
-    }, [isTimerActive]);
+    }, [isTimerActive, sessionState]);
 
-    const formatTime = (seconds) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
+    const loadBook = async () => {
+        if (!user) return;
+        try {
+            // Fetch directly to get single book (simulating with list fetch for now or adding getBookById)
+            // For now, let's use the existing getUserBooks which returns all, and filter. 
+            // Better to add getBookById but this works for MVP.
+            const { data, error } = await supabase
+                .from('books')
+                .select('*')
+                .eq('id', bookId)
+                .single();
 
-    const themeConfig = {
-        dark: 'bg-[#0f111a] text-[#e2e8f0]',
-        sepia: 'bg-[#f4ecd8] text-[#433422]',
-        light: 'bg-white text-gray-900',
+            if (error) throw error;
+            setBook(data);
+            setEndPage(data.current_page || 0);
+
+            // Start "opening" animation sequence
+            setTimeout(() => {
+                setSessionState('reading');
+                setIsTimerActive(true);
+                setStartTime(new Date());
+            }, 1500);
+        } catch (err) {
+            console.error('Error loading book:', err);
+            // navigate('/library');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
+    const formatTime = (seconds) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const handleStopSession = () => {
+        setIsTimerActive(false);
+        setSessionState('saving');
+    };
+
+    const handleSaveSession = async () => {
+        if (!book) return;
+
+        try {
+            const pagesRead = Math.max(0, parseInt(endPage) - (book.current_page || 0));
+
+            // 1. Log Session
+            await logReadingSession(user.id, book.id, timer, pagesRead);
+
+            // 2. Update Book Status
+            const newProgress = book.total_pages
+                ? Math.min(100, Math.round((parseInt(endPage) / book.total_pages) * 100))
+                : book.progress;
+
+            const newStatus = parseInt(endPage) >= (book.total_pages || 999999)
+                ? 'Completed'
+                : 'Reading';
+
+            await updateBookStatus(book.id, newStatus, newProgress, parseInt(endPage));
+
+            setSessionState('finished');
+            setTimeout(() => navigate('/library'), 2000);
+        } catch (err) {
+            console.error('Error saving session:', err);
+            alert('Failed to save session');
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+        );
+    }
+
+    if (!book) return null;
+
     return (
-        <div className={cn("fixed inset-0 z-50 flex transition-colors duration-500", themeConfig[theme])}>
-            {/* Controls Sidebar */}
-            <div className={cn(
-                "w-80 border-r flex flex-col transition-all duration-300 bg-opacity-5 backdrop-blur-sm border-current/10",
-                !sidebarOpen && "-ml-80"
-            )}>
-                <div className="p-6 border-b border-current/10 flex items-center gap-4">
-                    <Link to="/library" className="p-2 hover:bg-current/10 rounded-full transition-colors">
-                        <ArrowLeft size={20} />
-                    </Link>
-                    <span className="font-semibold">Reading Controls</span>
+        <div className="min-h-screen bg-background text-text-primary flex flex-col relative overflow-hidden">
+
+            {/* Background Atmosphere */}
+            <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px]" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px]" />
+            </div>
+
+            {/* Header */}
+            <header className="relative z-10 p-6 flex items-center justify-between border-b border-white/5 bg-background/50 backdrop-blur-sm">
+                <Link to="/library" className="flex items-center gap-2 text-text-muted hover:text-white transition-colors">
+                    <ArrowLeft size={20} />
+                    <span>Back to Library</span>
+                </Link>
+                <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                    <span className={`w-2 h-2 rounded-full ${isTimerActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                    <span className="text-sm font-mono text-text-secondary">
+                        {isTimerActive ? 'Recording Session' : 'Session Paused'}
+                    </span>
+                </div>
+            </header>
+
+            <main className="flex-1 relative z-10 flex flex-col items-center justify-center p-6">
+
+                {/* Book Opening Animation / Visual */}
+                <div className={cn(
+                    "relative transition-all duration-1000 ease-in-out transform",
+                    sessionState === 'opening' ? "scale-95 opacity-50" : "scale-100 opacity-100"
+                )}>
+                    <div className="relative w-48 h-72 md:w-64 md:h-96 rounded-r-2xl rounded-l-md shadow-2xl bg-white/5 border-l-4 border-white/10 flex items-center justify-center overflow-hidden mb-8 group">
+                        {book.cover_url ? (
+                            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                        ) : (
+                            <BookOpen className="w-16 h-16 text-text-muted" />
+                        )}
+
+                        {/* Lighting Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-white/10 pointer-events-none" />
+                    </div>
                 </div>
 
-                <div className="p-6 space-y-8 overflow-y-auto flex-1">
-                    {/* Timer Section */}
-                    <div className="p-4 rounded-xl bg-current/5 space-y-2">
-                        <div className="flex items-center gap-2 text-sm opacity-70">
-                            <Clock size={16} />
-                            <span>Session Timer</span>
-                        </div>
-                        <div className="text-3xl font-mono font-bold flex items-center justify-between">
-                            {formatTime(timer)}
-                            <button
-                                onClick={() => setIsTimerActive(!isTimerActive)}
-                                className="text-sm px-3 py-1 rounded-full border border-current/20 hover:bg-current/10 transition-colors"
-                            >
-                                {isTimerActive ? 'Pause' : 'Resume'}
-                            </button>
-                        </div>
+                {/* Session Info & Controls */}
+                <div className="text-center space-y-6 max-w-md w-full">
+
+                    <div className="space-y-2">
+                        <h1 className="text-2xl md:text-3xl font-bold text-white">{book.title}</h1>
+                        <p className="text-text-muted">{book.authors}</p>
                     </div>
 
-                    {/* Theme Toggle */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium opacity-70">Theme</label>
-                        <div className="flex gap-2">
-                            {[
-                                { id: 'dark', icon: Moon, label: 'Dark' },
-                                { id: 'sepia', icon: FileText, label: 'Sepia' },
-                                { id: 'light', icon: Sun, label: 'Light' }
-                            ].map((t) => (
+                    {sessionState !== 'saving' && sessionState !== 'finished' && (
+                        <div className="space-y-8">
+                            <div className="font-mono text-6xl md:text-7xl font-light text-white tracking-widest tabular-nums from-primary to-accent bg-clip-text">
+                                {formatTime(timer)}
+                            </div>
+
+                            <div className="flex items-center justify-center gap-6">
                                 <button
-                                    key={t.id}
-                                    onClick={() => setTheme(t.id)}
+                                    onClick={() => setIsTimerActive(!isTimerActive)}
                                     className={cn(
-                                        "flex-1 py-3 rounded-lg border flex flex-col items-center gap-2 transition-all",
-                                        theme === t.id
-                                            ? "border-primary bg-primary/10 text-primary"
-                                            : "border-current/10 hover:bg-current/5"
+                                        "w-16 h-16 rounded-full flex items-center justify-center transition-all",
+                                        isTimerActive
+                                            ? "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                                            : "bg-primary text-white shadow-lg shadow-primary/30 scale-110"
                                     )}
                                 >
-                                    <t.icon size={18} />
-                                    <span className="text-xs">{t.label}</span>
+                                    {isTimerActive ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
                                 </button>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Typography */}
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium opacity-70">Font Size</label>
-                            <span className="text-xs opacity-50">{fontSize}px</span>
+                                <button
+                                    onClick={handleStopSession}
+                                    className="w-16 h-16 rounded-full flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white border border-white/10 hover:border-red-500/50 transition-all group"
+                                >
+                                    <StopCircle size={28} className="text-text-muted group-hover:text-red-400" />
+                                </button>
+                            </div>
                         </div>
-                        <input
-                            type="range"
-                            min="14"
-                            max="32"
-                            value={fontSize}
-                            onChange={(e) => setFontSize(Number(e.target.value))}
-                            className="w-full h-2 bg-current/10 rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <div className="flex justify-between text-xs opacity-50 px-1">
-                            <Type size={14} />
-                            <Type size={20} />
+                    )}
+
+                    {/* Saving State */}
+                    {sessionState === 'saving' && (
+                        <div className="bg-surface p-6 rounded-2xl border border-white/10 space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                            <h3 className="text-xl font-semibold text-white">Session Summary</h3>
+
+                            <div className="grid grid-cols-2 gap-4 text-left">
+                                <div className="p-3 bg-background rounded-lg border border-white/5">
+                                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Time Read</p>
+                                    <p className="text-lg font-mono">{formatTime(timer)}</p>
+                                </div>
+                                <div className="p-3 bg-background rounded-lg border border-white/5">
+                                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Started At</p>
+                                    <p className="text-lg font-mono">{book.current_page || 0}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 text-left">
+                                <label className="text-sm font-medium text-text-secondary block">
+                                    I stopped at page...
+                                </label>
+                                <input
+                                    type="number"
+                                    value={endPage}
+                                    onChange={(e) => setEndPage(e.target.value)}
+                                    className="w-full px-4 py-3 bg-background border border-white/10 rounded-xl text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg"
+                                    placeholder={book.current_page || "0"}
+                                    autoFocus
+                                />
+                                {book.total_pages && (
+                                    <div className="flex justify-between text-xs text-text-muted px-1">
+                                        <span>Current: {book.current_page}</span>
+                                        <span>Total: {book.total_pages}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => {
+                                        setSessionState('reading');
+                                        setIsTimerActive(true);
+                                    }}
+                                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors"
+                                >
+                                    Resume Reading
+                                </button>
+                                <button
+                                    onClick={handleSaveSession}
+                                    className="flex-1 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Save size={18} />
+                                    Save Progress
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Finished State */}
+                    {sessionState === 'finished' && (
+                        <div className="bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/20 space-y-4 animate-in zoom-in-95">
+                            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                                <CheckCircle className="w-8 h-8 text-emerald-400" />
+                            </div>
+                            <h3 className="text-xl font-semibold text-white">Session Saved!</h3>
+                            <p className="text-text-muted">Great job! Your reading progress has been updated.</p>
+                        </div>
+                    )}
                 </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 relative h-full overflow-hidden flex flex-col">
-                {/* Toggle Sidebar Button */}
-                <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="absolute top-6 left-6 z-20 p-2 rounded-full bg-current/5 hover:bg-current/10 transition-colors opacity-50 hover:opacity-100"
-                >
-                    {sidebarOpen ? <Minimize size={20} /> : <Maximize size={20} />}
-                </button>
-
-                <div className="flex-1 overflow-y-auto px-4 md:px-0">
-                    <div
-                        className="max-w-2xl mx-auto py-20 px-4 md:px-12 transition-all duration-300 ease-in-out outline-none"
-                        style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}
-                    >
-                        <h1 className="text-4xl md:text-5xl font-bold mb-12 leading-tight">The Midnight Library</h1>
-
-                        <p className="mb-6 indent-8 text-justify">
-                            Between life and death there is a library, and within that library, the shelves go on forever. Every book provides a chance to try another life you could have lived. To see how things would be if you had made other choices... Would you have done anything different, if you had the chance to undo your regrets?
-                        </p>
-
-                        <p className="mb-6 indent-8 text-justify">
-                            Nora Seed found herself in just such a library. It was endless. The shelves stretched into the dark distance, their boundaries indiscernible in the gloom. It was quiet, too. The kind of quiet that feels heavy, like a blanket.
-                        </p>
-
-                        <p className="mb-6 indent-8 text-justify">
-                            "Be careful what you wish for," the librarian said, appearing from the shadows with a knowing smile. Mrs. Elm had been the librarian at Nora's school, a comforting presence in a difficult childhood. Seeing her here, now, was both strange and oddly familiar.
-                        </p>
-
-                        <p className="mb-6 indent-8 text-justify">
-                            The books were all shades of green. Hunter green, forest green, lime green, olive. Some were old and worn, their spines cracked and faded. Others looked brand new, as if they had just been printed. Each one represented a life Nora could have lived.
-                        </p>
-
-                        <p className="mb-6 indent-8 text-justify">
-                            She reached out and touched the spine of a thick, dark green volume. It felt cold to the touch. "This one," Mrs. Elm said softly, "is the life where you stayed in the band."
-                        </p>
-
-                        <p className="mb-6 indent-8 text-justify opacity-50">
-                            (This is a specialized reading mode designed for focus. The content is placeholder text for demonstration purposes.)
-                        </p>
-                    </div>
-                </div>
-            </div>
+            </main>
         </div>
     );
 }
