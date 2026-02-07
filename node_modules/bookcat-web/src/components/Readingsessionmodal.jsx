@@ -84,16 +84,15 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
 
     const handleFinishSession = async () => {
         const pagesRead = currentPage - startPage;
-        const durationMinutes = Math.floor(elapsedSeconds / 60);
+        const durationSeconds = Math.floor(elapsedSeconds);
 
-        if (user && durationMinutes > 0) {
+        if (user && durationSeconds > 0) {
             try {
                 await logReadingSession(
                     user.id,
                     book.id,
-                    durationMinutes,
-                    pagesRead,
-                    intent
+                    durationSeconds,
+                    pagesRead
                 );
             } catch (err) {
                 console.error('Failed to log reading session:', err);
@@ -103,7 +102,7 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
         onComplete({
             pagesRead,
             duration: elapsedSeconds,
-            durationMinutes,
+            durationMinutes: Math.floor(elapsedSeconds / 60),
             intent,
             startTime: sessionStartTime,
             endTime: new Date(),
@@ -322,21 +321,31 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors"
+                            className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleFinishSession}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/30 transition-all hover:scale-105"
+                            disabled={elapsedSeconds === 0}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold shadow-lg transition-all",
+                                elapsedSeconds === 0
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 hover:scale-105"
+                            )}
                         >
                             <Check size={20} />
-                            Finish Session
+                            Save & Exit
                         </button>
                     </div>
-                    {elapsedSeconds > 0 && (
+                    {elapsedSeconds > 0 ? (
                         <p className="text-center text-xs text-text-muted mt-3">
-                            Session will be saved to your reading history
+                            Session will be saved to your stats • {formatTime(elapsedSeconds)} • {pagesRead} pages
+                        </p>
+                    ) : (
+                        <p className="text-center text-xs text-text-muted mt-3">
+                            Start the timer to begin tracking your session
                         </p>
                     )}
                 </div>

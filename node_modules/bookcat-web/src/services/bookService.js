@@ -243,3 +243,45 @@ export async function getReadingStats(userId) {
         return { totalSeconds: 0, totalPages: 0, sessionCount: 0 };
     }
 }
+
+export const getReadingSessions = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('reading_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching reading sessions:', error);
+        throw error;
+    }
+};
+
+/*
+// In ReadingSessionModal.jsx
+import { logReadingSession, getReadingSessions } from '../services/bookService';
+
+// Log a session
+await logReadingSession(
+    user.id,
+    book.id,
+    durationSeconds,
+    pagesRead
+);
+
+// Fetch all sessions
+const sessions = await getReadingSessions(user.id);
+
+// Example session object:
+{
+    id: 'uuid',
+    user_id: 'uuid',
+    book_id: 'uuid',
+    duration_seconds: 2700,
+    pages_read: 23,
+    created_at: '2024-01-15T14:30:00Z'
+}
+*/
