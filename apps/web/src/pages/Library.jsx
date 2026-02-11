@@ -307,11 +307,34 @@ export default function Library() {
                             <div 
                                 key={book.id} 
                                 className={cn(
-                                    "group relative bg-surface rounded-2xl overflow-hidden border border-white/5 transition-all duration-500",
+                                    "group relative bg-surface rounded-2xl overflow-hidden border border-white/5 transition-all duration-200",
+                                    "hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2",
+                                    "hover:border-primary/50",
                                     isOpening 
                                         ? "scale-105 shadow-2xl shadow-primary/30 z-50" 
-                                        : "hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1"
+                                        : ""
                                 )}
+                                style={{
+                                    transformStyle: 'preserve-3d',
+                                    transition: 'all 0.2s ease-out'
+                                }}
+                                onMouseMove={(e) => {
+                                    if (isOpening) return;
+                                    const card = e.currentTarget;
+                                    const rect = card.getBoundingClientRect();
+                                    const x = e.clientX - rect.left;
+                                    const y = e.clientY - rect.top;
+                                    const centerX = rect.width / 2;
+                                    const centerY = rect.height / 2;
+                                    const rotateX = (y - centerY) / 20;
+                                    const rotateY = (centerX - x) / 20;
+                                    
+                                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`;
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (isOpening) return;
+                                    e.currentTarget.style.transform = '';
+                                }}
                             >
                                 <div className="aspect-[2/3] overflow-hidden relative">
                                     {book.cover_url ? (
@@ -423,10 +446,21 @@ export default function Library() {
                                         </div>
                                         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                             <div 
-                                                className="h-full bg-primary transition-all duration-300 shadow-[0_0_6px_rgba(var(--primary-rgb),0.4)]" 
+                                                className={cn(
+                                                    "h-full transition-all duration-700 ease-out",
+                                                    progressValue === 100 
+                                                        ? "bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse-glow" 
+                                                        : "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.4)]"
+                                                )} 
                                                 style={{ width: `${progressValue}%` }} 
                                             />
                                         </div>
+                                        {progressValue === 100 && (
+                                            <div className="text-xs text-emerald-400 font-semibold animate-fade-in flex items-center gap-1">
+                                                <CheckCircle size={12} />
+                                                Completed!
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Action Buttons */}
@@ -632,11 +666,39 @@ export default function Library() {
                         transform: scale(1);
                     }
                 }
+                @keyframes pulse-glow {
+                    0%, 100% { 
+                        box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+                    }
+                    50% { 
+                        box-shadow: 0 0 20px rgba(16, 185, 129, 1);
+                    }
+                }
+                @keyframes book-open {
+                    0% {
+                        transform: scale(1);
+                        border-radius: 1rem;
+                    }
+                    50% {
+                        transform: scale(1.1) translateZ(50px);
+                        border-radius: 0.5rem;
+                    }
+                    100% {
+                        transform: scale(1.2) scaleX(1.5);
+                        border-radius: 0;
+                    }
+                }
                 .animate-fade-in {
                     animation: fade-in 0.3s ease-out;
                 }
                 .animate-scale-in {
                     animation: scale-in 0.3s ease-out;
+                }
+                .animate-pulse-glow {
+                    animation: pulse-glow 2s ease-in-out infinite;
+                }
+                .animate-book-open {
+                    animation: book-open 0.8s ease-out forwards;
                 }
             `}</style>
         </div>
