@@ -3,13 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Library, Users, ArrowLeftRight, BarChart2, Settings, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-const navItems = [
-    { icon: Library, label: 'Library', path: '/library' },
-    { icon: Users, label: 'Community', path: '/community' },
-    { icon: ArrowLeftRight, label: 'Exchange', path: '/exchange' },
-    { icon: BarChart2, label: 'Stats', path: '/stats' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-];
+import { navItems } from '../../lib/navItems';
 
 export function Sidebar({ isOpen, onClose }) {
     return (

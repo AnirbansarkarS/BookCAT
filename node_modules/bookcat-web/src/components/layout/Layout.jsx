@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
 
+import { BottomNav } from './BottomNav';
+
 export function Layout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -10,7 +12,7 @@ export function Layout() {
         <div className="min-h-screen bg-background text-text-primary flex">
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
                 <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto">
@@ -18,6 +20,8 @@ export function Layout() {
                         <Outlet />
                     </div>
                 </main>
+
+                <BottomNav />
             </div>
         </div>
     );
