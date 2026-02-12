@@ -651,7 +651,7 @@ export default function Library() {
                 />
             )}
 
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{__html: `
                 @keyframes fade-in {
                     from { opacity: 0; }
                     to { opacity: 1; }
@@ -700,7 +700,7 @@ export default function Library() {
                 .animate-book-open {
                     animation: book-open 0.8s ease-out forwards;
                 }
-            `}</style>
+            `}} />
         </div>
     );
 }
