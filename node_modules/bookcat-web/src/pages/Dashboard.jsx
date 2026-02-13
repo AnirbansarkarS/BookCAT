@@ -5,15 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { getUserBooks } from '../services/bookService';
 import RealtimeStatsWidget from '../components/RealtimeStatsWidget';
 import { cn } from '../lib/utils';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 export default function Dashboard() {
     const { user } = useAuth();
     const [recentBooks, setRecentBooks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        loadRecentBooks();
-    }, [user]);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const loadRecentBooks = async () => {
         if (!user) return;
@@ -33,6 +31,25 @@ export default function Dashboard() {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadRecentBooks();
+
+        // Listen for session completion events
+        const handleRefresh = () => {
+            console.log('📚 Dashboard refreshing books');
+            loadRecentBooks();
+            setRefreshTrigger(prev => prev + 1);
+        };
+
+        eventBus.on(EVENTS.SESSION_COMPLETED, handleRefresh);
+        eventBus.on(EVENTS.BOOK_UPDATED, handleRefresh);
+
+        return () => {
+            eventBus.off(EVENTS.SESSION_COMPLETED, handleRefresh);
+            eventBus.off(EVENTS.BOOK_UPDATED, handleRefresh);
+        };
+    }, [user]);
 
     return (
         <div className="space-y-8">

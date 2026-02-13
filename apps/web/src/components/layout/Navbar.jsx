@@ -62,6 +62,22 @@ export function Navbar({ onMenuClick }) {
                         className="bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-muted w-full"
                     />
                 </div>
+
+                {/* Desktop Navigation Links */}
+                <div className="hidden md:flex items-center gap-6 ml-4">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="text-sm font-medium text-text-secondary hover:text-white transition-colors"
+                    >
+                        Dashboard
+                    </button>
+                    <button
+                        onClick={() => navigate('/library')}
+                        className="text-sm font-medium text-text-secondary hover:text-white transition-colors"
+                    >
+                        Library
+                    </button>
+                </div>
             </div>
 
             <div className="flex items-center gap-2 md:gap-4">

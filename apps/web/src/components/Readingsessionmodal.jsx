@@ -82,34 +82,68 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
         setCurrentPage(prev => prev - 1);
     };
 
-    const handleFinishSession = async () => {
-        const pagesRead = currentPage - startPage;
-        const durationSeconds = Math.floor(elapsedSeconds);
+const handleFinishSession = async () => {
+    const pagesRead = currentPage - startPage;
+    const durationMinutes = Math.max(0, Math.floor(elapsedSeconds / 60));
 
-        if (user && durationSeconds > 0) {
-            try {
-                await logReadingSession(
+    console.log('💾 Attempting to save session:', {
+        elapsedSeconds,
+        durationMinutes,
+        pagesRead,
+        intent
+    });
+
+    // Save if there's either time spent OR pages read
+    if (user && (durationMinutes > 0 || pagesRead > 0)) {
+        try {
+            // Use at least 1 minute for database constraint
+            const dbDuration = durationMinutes > 0 ? durationMinutes : (pagesRead > 0 ? 1 : 0);
+            
+            if (dbDuration > 0) {
+                console.log('💾 Saving to database:', {
+                    userId: user.id,
+                    bookId: book.id,
+                    durationMinutes: dbDuration,
+                    pagesRead,
+                    intent
+                });
+
+                const result = await logReadingSession(
                     user.id,
                     book.id,
-                    durationSeconds,
-                    pagesRead
+                    dbDuration,
+                    pagesRead,
+                    intent
                 );
-            } catch (err) {
-                console.error('Failed to log reading session:', err);
+
+                if (result.error) {
+                    console.error('❌ Failed to save session:', result.error);
+                } else {
+                    console.log('✅ Session saved successfully');
+                }
             }
+        } catch (err) {
+            console.error('Failed to log reading session:', err);
         }
+    } else {
+        console.log('ℹ️ No time or pages to save');
+    }
 
-        onComplete({
-            pagesRead,
-            duration: elapsedSeconds,
-            durationMinutes: Math.floor(elapsedSeconds / 60),
-            intent,
-            startTime: sessionStartTime,
-            endTime: new Date(),
-        });
-
-        onClose();
+    // Always complete the session and emit events
+    const sessionData = {
+        pagesRead,
+        duration: elapsedSeconds,
+        durationMinutes,
+        intent,
+        startTime: sessionStartTime,
+        endTime: new Date(),
     };
+
+    console.log('📤 Calling onComplete with:', sessionData);
+    onComplete(sessionData);
+
+    onClose();
+};
 
     const formatTime = (seconds) => {
         const hours = Math.floor(seconds / 3600);
@@ -323,31 +357,27 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
                             onClick={onClose}
                             className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors"
                         >
-                            Cancel
+                            Cancel (Don't Save)
                         </button>
                         <button
                             onClick={handleFinishSession}
-                            disabled={elapsedSeconds === 0}
-                            className={cn(
-                                "flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold shadow-lg transition-all",
-                                elapsedSeconds === 0
-                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
-                                    : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 hover:scale-105"
-                            )}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/30 transition-all hover:scale-105"
                         >
                             <Check size={20} />
                             Save & Exit
                         </button>
                     </div>
-                    {elapsedSeconds > 0 ? (
-                        <p className="text-center text-xs text-text-muted mt-3">
-                            Session will be saved to your stats • {formatTime(elapsedSeconds)} • {pagesRead} pages
-                        </p>
-                    ) : (
-                        <p className="text-center text-xs text-text-muted mt-3">
-                            Start the timer to begin tracking your session
-                        </p>
-                    )}
+                    <div className="text-center text-xs text-text-muted mt-3">
+                        {elapsedSeconds > 0 ? (
+                            <p>
+                                Will save: <span className="text-white font-semibold">{formatTime(elapsedSeconds)}</span> • <span className="text-white font-semibold">{pagesRead} pages</span>
+                            </p>
+                        ) : (
+                            <p>
+                                Start the timer or add pages, then click Save & Exit
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 

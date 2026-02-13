@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getUserBooks, updateBookDetails, logReadingSession } from '../services/bookService';
 import AddBookModal from '../components/AddBookModal';
 import ReadingSessionModal from '../components/ReadingSessionModal';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 // System tags for book states
 const SYSTEM_TAGS = {
@@ -190,6 +191,11 @@ export default function Library() {
                 b.id === updatedBook.id ? updatedBook : b
             ));
         }
+
+        // Emit event to update stats
+        console.log('🎉 Session completed - emitting event');
+        eventBus.emit(EVENTS.SESSION_COMPLETED, sessionData);
+        eventBus.emit(EVENTS.STATS_REFRESH);
 
         setReadingSessionBook(null);
         setSelectedIntent(null);
