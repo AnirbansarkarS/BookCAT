@@ -50,15 +50,23 @@ export default function RealtimeStatsWidget() {
 
             // Today's stats
             const todaySessions = sessions.filter(s => new Date(s.created_at) >= today);
-            const todayMinutes = todaySessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
-            const todayPages = todaySessions.reduce((sum, s) => sum + (s.pages_read || 0), 0);
+            let todayMinutes = todaySessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+            let todayPages = todaySessions.reduce((sum, s) => sum + (s.pages_read || 0), 0);
+
+            // Add active session if exists
+            const activeSession = statsCache.getActiveSession();
+            if (activeSession) {
+                todayMinutes += activeSession.durationMinutes || 0;
+                todayPages += activeSession.pagesRead || 0;
+                console.log('📊 Including active session in stats:', activeSession);
+            }
 
             // Week stats
             const weekSessions = sessions.filter(s => new Date(s.created_at) >= weekAgo);
             const weekMinutes = weekSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
 
             // Streak calculation
-            const dates = [...new Set(sessions.map(s => 
+            const dates = [...new Set(sessions.map(s =>
                 new Date(s.created_at).toDateString()
             ))].sort((a, b) => new Date(b) - new Date(a));
 
@@ -74,7 +82,7 @@ export default function RealtimeStatsWidget() {
             }
 
             // Books currently reading
-            const booksReading = books.filter(b => 
+            const booksReading = books.filter(b =>
                 b.status === 'Reading' || b.tags?.includes('reading_now')
             ).length;
 
@@ -106,7 +114,7 @@ export default function RealtimeStatsWidget() {
 
     useEffect(() => {
         loadStats(); // Initial load (tries cache first)
-        
+
         // Refresh stats every 30 seconds for real-time feel
         const interval = setInterval(() => {
             loadStats(false); // Don't force, use cache if fresh
@@ -174,7 +182,7 @@ export default function RealtimeStatsWidget() {
         <div className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {/* Today's Reading Time */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20"
@@ -194,7 +202,7 @@ export default function RealtimeStatsWidget() {
                 </div>
 
                 {/* Today's Pages */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20"
@@ -214,7 +222,7 @@ export default function RealtimeStatsWidget() {
                 </div>
 
                 {/* Reading Streak */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/20",
@@ -235,7 +243,7 @@ export default function RealtimeStatsWidget() {
                 </div>
 
                 {/* Week Progress */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-500/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20"
@@ -249,7 +257,7 @@ export default function RealtimeStatsWidget() {
                         {formatTime(stats.weekMinutes)}
                     </div>
                     <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-2">
-                        <div 
+                        <div
                             className="h-full bg-gradient-to-r from-purple-400 to-purple-600 transition-all duration-1000 ease-out"
                             style={{ width: `${Math.min(100, (stats.weekMinutes / 420) * 100)}%` }} // 7h target
                         />
@@ -257,7 +265,7 @@ export default function RealtimeStatsWidget() {
                 </div>
 
                 {/* Currently Reading */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 border border-indigo-500/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20"
@@ -276,7 +284,7 @@ export default function RealtimeStatsWidget() {
                 </div>
 
                 {/* Quick Action Card */}
-                <div 
+                <div
                     className={cn(
                         "bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-4",
                         "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20",
@@ -303,7 +311,8 @@ export default function RealtimeStatsWidget() {
                 <span>Updated {getTimeSinceUpdate()}</span>
             </div>
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes count-up {
                     from {
                         opacity: 0.5;
