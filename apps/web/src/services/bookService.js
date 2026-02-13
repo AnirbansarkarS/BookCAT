@@ -112,33 +112,6 @@ export async function updateBookStatus(bookId, status, progress, currentPage = n
 }
 
 /**
- * Update arbitrary book fields
- * @param {string} bookId - The book's ID
- * @param {object} updates - Fields to update
- * @returns {Promise<object>} The updated book record
- */
-export async function updateBookDetails(bookId, updates) {
-    try {
-        const updateData = Object.fromEntries(
-            Object.entries(updates || {}).filter(([, value]) => value !== undefined)
-        );
-
-        const { data, error } = await supabase
-            .from('books')
-            .update(updateData)
-            .eq('id', bookId)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    } catch (error) {
-        console.error('Error updating book details:', error);
-        throw error;
-    }
-}
-
-/**
  * Delete a book
  * @param {string} bookId - The book's ID
  * @returns {Promise<void>}
@@ -183,36 +156,144 @@ export async function checkDuplicateISBN(userId, isbn) {
 }
 
 /**
- * Log a reading session
- * @param {string} userId - The user's ID
- * @param {string} bookId - The book's ID
- * @param {number} durationSeconds - Duration in seconds
- * @param {number} pagesRead - Number of pages read in this session
- * @returns {Promise<object>} The created session record
+ * Update book details with validation
  */
-export async function logReadingSession(userId, bookId, durationSeconds, pagesRead) {
+export const updateBookDetails = async (bookId, updates) => {
     try {
+        if (!bookId) {
+            throw new Error('bookId is required');
+        }
+
+        // Validate and clean updates
+        const cleanUpdates = {};
+
+        if (updates.status !== undefined) {
+            cleanUpdates.status = updates.status;
+        }
+
+        if (updates.current_page !== undefined) {
+            cleanUpdates.current_page = Math.max(0, Math.floor(Number(updates.current_page) || 0));
+        }
+
+        if (updates.total_pages !== undefined) {
+            cleanUpdates.total_pages = updates.total_pages ? Math.max(0, Math.floor(Number(updates.total_pages))) : null;
+        }
+
+        if (updates.progress !== undefined) {
+            cleanUpdates.progress = Math.min(100, Math.max(0, Math.floor(Number(updates.progress) || 0)));
+        }
+
+        if (updates.tags !== undefined) {
+            cleanUpdates.tags = Array.isArray(updates.tags) ? updates.tags : [];
+        }
+
+        // Always update timestamp
+        cleanUpdates.updated_at = new Date().toISOString();
+
+        console.log('📝 Updating book:', bookId, cleanUpdates);
+
+        const { data, error } = await supabase
+            .from('books')
+            .update(cleanUpdates)
+            .eq('id', bookId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('❌ Error updating book:', error);
+            throw error;
+        }
+
+        console.log('✅ Book updated successfully:', data);
+        return { data, error: null };
+    } catch (error) {
+        console.error('Error updating book details:', error);
+        return { data: null, error };
+    }
+};
+
+/**
+ * Log a reading session with proper validation
+ */
+export const logReadingSession = async (userId, bookId, durationMinutes, pagesRead = 0, intent = null) => {
+    try {
+        // Validate inputs
+        if (!userId || !bookId) {
+            throw new Error('userId and bookId are required');
+        }
+
+        // Ensure duration is a valid positive integer
+        const validDuration = Math.max(1, Math.floor(Number(durationMinutes) || 0));
+
+        // Ensure pages is a valid non-negative integer
+        const validPages = Math.max(0, Math.floor(Number(pagesRead) || 0));
+
+        console.log('📝 Logging reading session:', {
+            userId,
+            bookId,
+            durationMinutes: validDuration,
+            pagesRead: validPages,
+            intent
+        });
+
         const { data, error } = await supabase
             .from('reading_sessions')
             .insert([
                 {
                     user_id: userId,
                     book_id: bookId,
-                    duration_seconds: durationSeconds,
-                    pages_read: pagesRead,
-                    end_time: new Date().toISOString()
+                    duration_minutes: validDuration,
+                    pages_read: validPages,
+                    intent: intent || null,
+                    start_time: new Date().toISOString(),
+                    end_time: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
                 }
             ])
             .select()
             .single();
 
-        if (error) throw error;
-        return data;
+        if (error) {
+            console.error('❌ Error logging session:', error);
+            throw error;
+        }
+
+        console.log('✅ Session logged successfully:', data);
+        return { data, error: null };
     } catch (error) {
         console.error('Error logging reading session:', error);
-        throw error;
+        return { data: null, error };
     }
-}
+};
+
+/**
+ * Fetch all reading sessions for a user
+ */
+export const getReadingSessions = async (userId) => {
+    try {
+        if (!userId) {
+            console.warn('No userId provided to getReadingSessions');
+            return [];
+        }
+
+        const { data, error } = await supabase
+            .from('reading_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching reading sessions:', error);
+            throw error;
+        }
+
+        console.log(`📊 Fetched ${data?.length || 0} reading sessions`);
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching reading sessions:', error);
+        return [];
+    }
+};
 
 /**
  * Get reading stats for a user
@@ -223,65 +304,45 @@ export async function getReadingStats(userId) {
     try {
         const { data: sessions, error } = await supabase
             .from('reading_sessions')
-            .select('duration_seconds, pages_read, created_at')
+            .select('duration_minutes, pages_read, created_at')
             .eq('user_id', userId);
 
         if (error) throw error;
 
-        const totalTime = sessions?.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0) || 0;
+        const totalTime = sessions?.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) || 0;
         const totalPages = sessions?.reduce((acc, curr) => acc + (curr.pages_read || 0), 0) || 0;
 
-        // Calculate streaks or other stats here if needed
-
         return {
-            totalSeconds: totalTime,
+            totalMinutes: totalTime,
             totalPages,
             sessionCount: sessions?.length || 0
         };
     } catch (error) {
         console.error('Error fetching reading stats:', error);
-        return { totalSeconds: 0, totalPages: 0, sessionCount: 0 };
+        return { totalMinutes: 0, totalPages: 0, sessionCount: 0 };
     }
 }
 
-export const getReadingSessions = async (userId) => {
-    try {
-        const { data, error } = await supabase
-            .from('reading_sessions')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return data || [];
-    } catch (error) {
-        console.error('Error fetching reading sessions:', error);
-        throw error;
-    }
+/**
+ * Subscribe to realtime reading session updates
+ * @param {string} userId - The user's ID
+ * @param {function} callback - Function to call when a new session is logged
+ * @returns {object} Subscription object
+ */
+export const subscribeToReadingSessions = (userId, callback) => {
+    return supabase
+        .channel('reading_sessions_changes')
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'reading_sessions',
+                filter: `user_id=eq.${userId}`
+            },
+            (payload) => {
+                callback(payload.new);
+            }
+        )
+        .subscribe();
 };
-
-/*
-// In ReadingSessionModal.jsx
-import { logReadingSession, getReadingSessions } from '../services/bookService';
-
-// Log a session
-await logReadingSession(
-    user.id,
-    book.id,
-    durationSeconds,
-    pagesRead
-);
-
-// Fetch all sessions
-const sessions = await getReadingSessions(user.id);
-
-// Example session object:
-{
-    id: 'uuid',
-    user_id: 'uuid',
-    book_id: 'uuid',
-    duration_seconds: 2700,
-    pages_read: 23,
-    created_at: '2024-01-15T14:30:00Z'
-}
-*/
