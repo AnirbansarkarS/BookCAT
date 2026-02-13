@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, Check, Clock, BookOpen, ChevronUp } from 'lucide-react';
+import { X, Play, Pause, Check, Clock, BookOpen, ChevronUp, Save } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { logReadingSession } from '../services/bookService';
 import { useAuth } from '../hooks/useAuth';
+import { eventBus, EVENTS } from '../utils/eventBus';
+import { statsCache } from '../utils/statsCache';
 
 export default function ReadingSessionModal({ book, intent, onClose, onComplete }) {
     const { user } = useAuth();
@@ -12,6 +14,7 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
     const [currentPage, setCurrentPage] = useState(book.current_page || 0);
     const [sessionStartTime, setSessionStartTime] = useState(null);
     const [showPageInput, setShowPageInput] = useState(false);
+    const [showSavedNotification, setShowSavedNotification] = useState(false);
     const intervalRef = useRef(null);
     const lastActivityRef = useRef(Date.now());
 
@@ -82,68 +85,105 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
         setCurrentPage(prev => prev - 1);
     };
 
-const handleFinishSession = async () => {
-    const pagesRead = currentPage - startPage;
-    const durationMinutes = Math.max(0, Math.floor(elapsedSeconds / 60));
+    const handleSaveProgress = () => {
+        // Pause the timer
+        setIsRunning(false);
 
-    console.log('💾 Attempting to save session:', {
-        elapsedSeconds,
-        durationMinutes,
-        pagesRead,
-        intent
-    });
+        const pagesRead = currentPage - startPage;
+        const durationMinutes = Math.max(0, Math.floor(elapsedSeconds / 60));
 
-    // Save if there's either time spent OR pages read
-    if (user && (durationMinutes > 0 || pagesRead > 0)) {
-        try {
-            // Use at least 1 minute for database constraint
-            const dbDuration = durationMinutes > 0 ? durationMinutes : (pagesRead > 0 ? 1 : 0);
-            
-            if (dbDuration > 0) {
-                console.log('💾 Saving to database:', {
-                    userId: user.id,
-                    bookId: book.id,
-                    durationMinutes: dbDuration,
-                    pagesRead,
-                    intent
-                });
+        // Save to cache
+        const sessionData = {
+            bookId: book.id,
+            bookTitle: book.title,
+            bookCover: book.cover_url,
+            elapsedSeconds,
+            durationMinutes,
+            pagesRead,
+            currentPage,
+            startPage,
+            intent,
+            sessionStartTime: sessionStartTime ? sessionStartTime.toISOString() : new Date().toISOString(),
+            lastSaved: new Date().toISOString(),
+        };
 
-                const result = await logReadingSession(
-                    user.id,
-                    book.id,
-                    dbDuration,
-                    pagesRead,
-                    intent
-                );
+        statsCache.saveActiveSession(sessionData);
 
-                if (result.error) {
-                    console.error('❌ Failed to save session:', result.error);
-                } else {
-                    console.log('✅ Session saved successfully');
-                }
-            }
-        } catch (err) {
-            console.error('Failed to log reading session:', err);
-        }
-    } else {
-        console.log('ℹ️ No time or pages to save');
-    }
+        // Emit event to refresh dashboard
+        eventBus.emit(EVENTS.STATS_REFRESH);
 
-    // Always complete the session and emit events
-    const sessionData = {
-        pagesRead,
-        duration: elapsedSeconds,
-        durationMinutes,
-        intent,
-        startTime: sessionStartTime,
-        endTime: new Date(),
+        // Show notification
+        setShowSavedNotification(true);
+        setTimeout(() => setShowSavedNotification(false), 3000);
+
+        console.log('💾 Progress saved to cache:', sessionData);
     };
 
-    console.log('📤 Calling onComplete with:', sessionData);
-    onComplete(sessionData);
+    const handleFinishSession = async () => {
+        const pagesRead = currentPage - startPage;
+        const durationMinutes = Math.max(0, Math.floor(elapsedSeconds / 60));
 
-    onClose();
-};
+        console.log('💾 Attempting to save session:', {
+            elapsedSeconds,
+            durationMinutes,
+            pagesRead,
+            intent
+        });
+
+        // Save if there's either time spent OR pages read
+        if (user && (durationMinutes > 0 || pagesRead > 0)) {
+            try {
+                // Use at least 1 minute for database constraint
+                const dbDuration = durationMinutes > 0 ? durationMinutes : (pagesRead > 0 ? 1 : 0);
+
+                if (dbDuration > 0) {
+                    console.log('💾 Saving to database:', {
+                        userId: user.id,
+                        bookId: book.id,
+                        durationMinutes: dbDuration,
+                        pagesRead,
+                        intent
+                    });
+
+                    const result = await logReadingSession(
+                        user.id,
+                        book.id,
+                        dbDuration,
+                        pagesRead,
+                        intent
+                    );
+
+                    if (result.error) {
+                        console.error('❌ Failed to save session:', result.error);
+                    } else {
+                        console.log('✅ Session saved successfully');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to log reading session:', err);
+            }
+        } else {
+            console.log('ℹ️ No time or pages to save');
+        }
+
+        // Always complete the session and emit events
+        const sessionData = {
+            pagesRead,
+            duration: elapsedSeconds,
+            durationMinutes,
+            intent,
+            startTime: sessionStartTime,
+            endTime: new Date(),
+        };
+
+        console.log('📤 Calling onComplete with:', sessionData);
+        onComplete(sessionData);
+
+        // Clear active session cache
+        statsCache.clearActiveSession();
+
+        onClose();
+    };
 
     const formatTime = (seconds) => {
         const hours = Math.floor(seconds / 3600);
@@ -157,7 +197,7 @@ const handleFinishSession = async () => {
     };
 
     const pagesRead = currentPage - startPage;
-    const progressPercent = book.total_pages 
+    const progressPercent = book.total_pages
         ? Math.min(100, Math.round((currentPage / book.total_pages) * 100))
         : 0;
 
@@ -165,7 +205,7 @@ const handleFinishSession = async () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
             {/* Background with book cover blur */}
             {book.cover_url && (
-                <div 
+                <div
                     className="absolute inset-0 opacity-10 blur-3xl"
                     style={{
                         backgroundImage: `url(${book.cover_url})`,
@@ -181,8 +221,8 @@ const handleFinishSession = async () => {
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex items-start gap-4">
                             {book.cover_url && (
-                                <img 
-                                    src={book.cover_url} 
+                                <img
+                                    src={book.cover_url}
                                     alt={book.title}
                                     className="w-16 h-24 object-cover rounded-lg shadow-lg"
                                 />
@@ -203,6 +243,14 @@ const handleFinishSession = async () => {
                             <X size={20} className="text-text-muted" />
                         </button>
                     </div>
+
+                    {/* Save Notification */}
+                    {showSavedNotification && (
+                        <div className="mt-3 px-4 py-2 bg-emerald-500/20 border border-emerald-500/50 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                            <span className="text-sm text-emerald-400 font-medium">Progress saved! Dashboard updated.</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Timer Display */}
@@ -221,8 +269,8 @@ const handleFinishSession = async () => {
                             {formatTime(elapsedSeconds)}
                         </div>
                         <p className="text-text-muted">
-                            {elapsedSeconds < 60 
-                                ? 'Just started...' 
+                            {elapsedSeconds < 60
+                                ? 'Just started...'
                                 : `${Math.floor(elapsedSeconds / 60)} minute${Math.floor(elapsedSeconds / 60) !== 1 ? 's' : ''} of focused reading`
                             }
                         </p>
@@ -239,13 +287,23 @@ const handleFinishSession = async () => {
                                 {sessionStartTime ? 'Resume' : 'Start Reading'}
                             </button>
                         ) : (
-                            <button
-                                onClick={handlePause}
-                                className="flex items-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-amber-500/30 transition-all hover:scale-105"
-                            >
-                                <Pause size={24} />
-                                Pause
-                            </button>
+                            <>
+                                <button
+                                    onClick={handlePause}
+                                    className="flex items-center gap-2 px-6 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-amber-500/30 transition-all hover:scale-105"
+                                >
+                                    <Pause size={24} />
+                                    Pause
+                                </button>
+                                <button
+                                    onClick={handleSaveProgress}
+                                    disabled={elapsedSeconds === 0 && currentPage === startPage}
+                                    className="flex items-center gap-2 px-6 py-4 bg-blue-500 hover:bg-blue-600 disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-lg shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
+                                >
+                                    <Save size={24} />
+                                    Save Progress
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -274,7 +332,7 @@ const handleFinishSession = async () => {
                                     >
                                         <ChevronUp size={24} className="text-white rotate-180" />
                                     </button>
-                                    
+
                                     <div className="text-center">
                                         <div className="text-4xl font-bold text-white mb-1">
                                             {currentPage}
@@ -340,7 +398,7 @@ const handleFinishSession = async () => {
                         {book.total_pages && (
                             <div className="mt-4">
                                 <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div 
+                                    <div
                                         className="h-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-500 shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
                                         style={{ width: `${progressPercent}%` }}
                                     />

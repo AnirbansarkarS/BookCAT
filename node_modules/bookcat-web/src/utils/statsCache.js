@@ -141,9 +141,50 @@ class StatsCache {
     isFresh() {
         const lastUpdate = this.getLastUpdate();
         if (!lastUpdate) return false;
-        
+
         const age = Date.now() - lastUpdate;
         return age < 60000; // 1 minute
+    }
+
+    // Active session management
+    saveActiveSession(sessionData) {
+        try {
+            const cacheData = {
+                data: sessionData,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem('bookcat_active_session', JSON.stringify(cacheData));
+            console.log('💾 Active session cached:', sessionData);
+        } catch (error) {
+            console.error('Failed to cache active session:', error);
+        }
+    }
+
+    getActiveSession() {
+        try {
+            const cached = localStorage.getItem('bookcat_active_session');
+            if (!cached) return null;
+
+            const { data, timestamp } = JSON.parse(cached);
+            console.log('📦 Retrieved active session:', data);
+            return data;
+        } catch (error) {
+            console.error('Failed to get active session:', error);
+            return null;
+        }
+    }
+
+    clearActiveSession() {
+        try {
+            localStorage.removeItem('bookcat_active_session');
+            console.log('🗑️ Active session cleared');
+        } catch (error) {
+            console.error('Failed to clear active session:', error);
+        }
+    }
+
+    hasActiveSession() {
+        return localStorage.getItem('bookcat_active_session') !== null;
     }
 }
 
