@@ -58,42 +58,40 @@ export const getAllUsers = async (currentUserId) => {
  */
 export const getFriends = async (userId) => {
     try {
-        const { data, error } = await supabase
+        // Get friendships
+        const { data: friendships, error: friendshipsError } = await supabase
             .from('friendships')
-            .select(`
-                id,
-                user_id,
-                friend_id,
-                status,
-                created_at,
-                friend:profiles!friendships_friend_id_fkey(
-                    id,
-                    username,
-                    email,
-                    avatar_url
-                ),
-                requester:profiles!friendships_user_id_fkey(
-                    id,
-                    username,
-                    email,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
 
-        if (error) throw error;
+        if (friendshipsError) throw friendshipsError;
 
-        // Format the data
-        const formatted = (data || []).map(friendship => {
+        // Get all unique user IDs from friendships
+        const userIds = new Set();
+        (friendships || []).forEach(f => {
+            userIds.add(f.user_id === userId ? f.friend_id : f.user_id);
+        });
+
+        // Fetch profiles for these users
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', Array.from(userIds));
+
+        if (profilesError) throw profilesError;
+
+        // Combine data
+        const formatted = (friendships || []).map(friendship => {
             const isSender = friendship.user_id === userId;
-            const otherPerson = isSender ? friendship.friend : friendship.requester;
+            const friendId = isSender ? friendship.friend_id : friendship.user_id;
+            const profile = (profiles || []).find(p => p.id === friendId);
             
             return {
                 friendship_id: friendship.id,
-                friend_id: isSender ? friendship.friend_id : friendship.user_id,
-                username: otherPerson.username,
-                email: otherPerson.email,
-                avatar_url: otherPerson.avatar_url,
+                friend_id: friendId,
+                username: profile?.username || 'User',
+                email: profile?.email || '',
+                avatar_url: profile?.avatar_url || null,
                 status: friendship.status,
                 friendship_since: friendship.created_at,
                 is_sender: isSender
@@ -187,28 +185,35 @@ export const removeFriend = async (friendshipId) => {
  */
 export const getActivityFeed = async (userId) => {
     try {
-        // Get user's own activities and friends' activities
-        const { data, error } = await supabase
+        // Get activities
+        const { data: activities, error: activitiesError } = await supabase
             .from('activity_feed')
-            .select(`
-                id,
-                user_id,
-                activity_type,
-                data,
-                is_public,
-                created_at,
-                user:profiles(username, avatar_url)
-            `)
+            .select('*')
             .order('created_at', { ascending: false })
             .limit(50);
 
-        if (error) throw error;
+        if (activitiesError) throw activitiesError;
 
-        // Format the data
-        const formatted = (data || []).map(activity => ({
-            ...activity,
-            username: activity.user?.username || 'A reader'
-        }));
+        // Get all unique user IDs
+        const userIds = new Set((activities || []).map(a => a.user_id));
+
+        // Fetch profiles for these users
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', Array.from(userIds));
+
+        if (profilesError) throw profilesError;
+
+        // Combine data
+        const formatted = (activities || []).map(activity => {
+            const profile = (profiles || []).find(p => p.id === activity.user_id);
+            return {
+                ...activity,
+                username: profile?.username || 'A reader',
+                avatar_url: profile?.avatar_url || null
+            };
+        });
 
         return formatted;
     } catch (error) {
