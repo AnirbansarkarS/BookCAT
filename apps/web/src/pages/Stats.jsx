@@ -3,6 +3,8 @@ import { Clock, BookOpen, TrendingUp, Calendar, Tag, Zap, Award, BarChart3, PieC
 import { useAuth } from '../hooks/useAuth';
 import { getReadingSessions, getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
+import { eventBus, EVENTS } from '../utils/eventBus';
+import { statsCache } from '../utils/statsCache';
 
 export default function Stats() {
     const { user } = useAuth();
@@ -11,20 +13,30 @@ export default function Stats() {
     const [isLoading, setIsLoading] = useState(true);
     const [timeRange, setTimeRange] = useState('all'); // all, today, week, month
 
-    useEffect(() => {
-        loadData();
-    }, [user]);
-
     const loadData = async () => {
         if (!user) return;
-        
+
         setIsLoading(true);
         try {
             const [sessionsData, booksData] = await Promise.all([
                 getReadingSessions(user.id),
                 getUserBooks(user.id)
             ]);
-            setSessions(sessionsData || []);
+
+            const activeSession = statsCache.getActiveSession();
+            const mergedSessions = activeSession
+                ? [{
+                    id: 'active-session',
+                    book_id: activeSession.bookId || null,
+                    created_at: activeSession.lastSaved || activeSession.sessionStartTime || new Date().toISOString(),
+                    duration_minutes: activeSession.durationMinutes || 0,
+                    duration_seconds: (activeSession.durationMinutes || 0) * 60,
+                    pages_read: activeSession.pagesRead || 0,
+                    intent: activeSession.intent || null,
+                }, ...(sessionsData || [])]
+                : (sessionsData || []);
+
+            setSessions(mergedSessions);
             setBooks(booksData || []);
         } catch (err) {
             console.error('Error loading stats:', err);
@@ -33,7 +45,37 @@ export default function Stats() {
         }
     };
 
-    const getSessionSeconds = (session) => session.duration_seconds || 0;
+    useEffect(() => {
+        loadData();
+
+        const handleStatsRefresh = () => {
+            loadData();
+        };
+
+        eventBus.on(EVENTS.SESSION_COMPLETED, handleStatsRefresh);
+        eventBus.on(EVENTS.BOOK_UPDATED, handleStatsRefresh);
+        eventBus.on(EVENTS.STATS_REFRESH, handleStatsRefresh);
+
+        return () => {
+            eventBus.off(EVENTS.SESSION_COMPLETED, handleStatsRefresh);
+            eventBus.off(EVENTS.BOOK_UPDATED, handleStatsRefresh);
+            eventBus.off(EVENTS.STATS_REFRESH, handleStatsRefresh);
+        };
+    }, [user]);
+
+    const getSessionSeconds = (session) => {
+        const seconds = Number(session.duration_seconds);
+        if (Number.isFinite(seconds) && seconds > 0) {
+            return seconds;
+        }
+
+        const minutes = Number(session.duration_minutes);
+        if (Number.isFinite(minutes) && minutes > 0) {
+            return Math.round(minutes * 60);
+        }
+
+        return 0;
+    };
 
     // ============= TIME-BASED STATS =============
     

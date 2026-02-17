@@ -11,7 +11,6 @@ export default function Dashboard() {
     const { user } = useAuth();
     const [recentBooks, setRecentBooks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const loadRecentBooks = async () => {
         if (!user) return;
@@ -39,15 +38,16 @@ export default function Dashboard() {
         const handleRefresh = () => {
             console.log('📚 Dashboard refreshing books');
             loadRecentBooks();
-            setRefreshTrigger(prev => prev + 1);
         };
 
         eventBus.on(EVENTS.SESSION_COMPLETED, handleRefresh);
         eventBus.on(EVENTS.BOOK_UPDATED, handleRefresh);
+        eventBus.on(EVENTS.STATS_REFRESH, handleRefresh);
 
         return () => {
             eventBus.off(EVENTS.SESSION_COMPLETED, handleRefresh);
             eventBus.off(EVENTS.BOOK_UPDATED, handleRefresh);
+            eventBus.off(EVENTS.STATS_REFRESH, handleRefresh);
         };
     }, [user]);
 
