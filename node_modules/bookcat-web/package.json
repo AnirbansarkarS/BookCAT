@@ -14,6 +14,7 @@
         "@tailwindcss/vite": "^4.1.18",
         "@zxing/browser": "^0.1.5",
         "clsx": "^2.1.0",
+        "framer-motion": "^12.34.1",
         "lucide-react": "^0.344.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
