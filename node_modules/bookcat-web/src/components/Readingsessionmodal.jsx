@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { statsCache } from '../utils/statsCache';
 
-export default function ReadingSessionModal({ book, intent, onClose, onComplete }) {
+export default function ReadingSessionModal({ book, intent, onClose, onComplete, onProgressSave }) {
     const { user } = useAuth();
     const [isRunning, setIsRunning] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -109,6 +109,10 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
 
         statsCache.saveActiveSession(sessionData);
 
+        if (onProgressSave) {
+            onProgressSave(sessionData);
+        }
+
         // Emit event to refresh dashboard
         eventBus.emit(EVENTS.STATS_REFRESH);
 
@@ -168,7 +172,10 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete 
 
         // Always complete the session and emit events
         const sessionData = {
+            bookId: book.id,
             pagesRead,
+            currentPage,
+            startPage,
             duration: elapsedSeconds,
             durationMinutes,
             intent,

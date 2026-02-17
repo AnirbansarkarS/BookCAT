@@ -135,13 +135,21 @@ export default function Library() {
 
         setSavingId(book.id);
         try {
-            await updateBookDetails(book.id, updates);
+            const { error: updateError } = await updateBookDetails(book.id, updates);
+            if (updateError) {
+                throw updateError;
+            }
 
             if (currentPage > (book.current_page || 0)) {
-                await logReadingSession(user.id, book.id, 0, currentPage - (book.current_page || 0));
+                const { error: sessionError } = await logReadingSession(user.id, book.id, 0, currentPage - (book.current_page || 0));
+                if (sessionError) {
+                    console.error('Failed to log session from manual page update:', sessionError);
+                }
             }
 
             setBooks(prev => prev.map(b => b.id === book.id ? { ...b, ...updates } : b));
+            eventBus.emit(EVENTS.BOOK_UPDATED, { bookId: book.id, updates });
+            eventBus.emit(EVENTS.STATS_REFRESH);
             setExpandedId(null);
         } catch (err) {
             console.error('Failed to update book details:', err);
@@ -169,27 +177,87 @@ export default function Library() {
         // ReadingSessionModal will handle the actual session
     };
 
+    const handleSessionProgressSave = async (progressData) => {
+        if (!readingSessionBook) return;
+
+        const nextCurrentPage = Number.isFinite(progressData.currentPage)
+            ? progressData.currentPage
+            : (readingSessionBook.current_page || 0);
+        if (nextCurrentPage === (readingSessionBook.current_page || 0)) return;
+
+        const nextProgress = readingSessionBook.total_pages
+            ? Math.min(100, Math.round((nextCurrentPage / readingSessionBook.total_pages) * 100))
+            : (readingSessionBook.progress || 0);
+
+        try {
+            const { error: updateError } = await updateBookDetails(readingSessionBook.id, {
+                current_page: nextCurrentPage,
+                progress: nextProgress,
+            });
+
+            if (updateError) {
+                console.error('Failed to save live progress:', updateError);
+                return;
+            }
+
+            setReadingSessionBook(prev => (
+                prev && prev.id === readingSessionBook.id
+                    ? { ...prev, current_page: nextCurrentPage, progress: nextProgress }
+                    : prev
+            ));
+            setBooks(prev => prev.map(b => (
+                b.id === readingSessionBook.id
+                    ? { ...b, current_page: nextCurrentPage, progress: nextProgress }
+                    : b
+            )));
+
+            eventBus.emit(EVENTS.BOOK_UPDATED, {
+                bookId: readingSessionBook.id,
+                currentPage: nextCurrentPage,
+                progress: nextProgress,
+                source: 'session_progress',
+            });
+            eventBus.emit(EVENTS.STATS_REFRESH);
+        } catch (err) {
+            console.error('Failed to update live reading progress:', err);
+        }
+    };
+
     // Handle session completion
     const handleSessionComplete = async (sessionData) => {
         // Update book progress
-        if (sessionData.pagesRead > 0) {
+        if (readingSessionBook) {
+            const safeCurrentPage = Number.isFinite(sessionData.currentPage)
+                ? sessionData.currentPage
+                : (readingSessionBook.current_page || 0) + Math.max(0, sessionData.pagesRead || 0);
             const updatedBook = {
                 ...readingSessionBook,
-                current_page: (readingSessionBook.current_page || 0) + sessionData.pagesRead,
+                current_page: safeCurrentPage,
             };
             
             if (updatedBook.total_pages) {
                 updatedBook.progress = Math.min(100, Math.round((updatedBook.current_page / updatedBook.total_pages) * 100));
             }
 
-            await updateBookDetails(updatedBook.id, {
+            const { error: updateError } = await updateBookDetails(updatedBook.id, {
                 current_page: updatedBook.current_page,
                 progress: updatedBook.progress,
             });
 
+            if (updateError) {
+                console.error('Failed to finalize book progress after session:', updateError);
+            }
+
             setBooks(prev => prev.map(b => 
                 b.id === updatedBook.id ? updatedBook : b
             ));
+
+            eventBus.emit(EVENTS.BOOK_UPDATED, {
+                bookId: updatedBook.id,
+                currentPage: updatedBook.current_page,
+                progress: updatedBook.progress,
+                source: 'session_complete',
+            });
         }
 
         // Emit event to update stats
@@ -649,6 +717,7 @@ export default function Library() {
                 <ReadingSessionModal
                     book={readingSessionBook}
                     intent={selectedIntent}
+                    onProgressSave={handleSessionProgressSave}
                     onClose={() => {
                         setReadingSessionBook(null);
                         setSelectedIntent(null);

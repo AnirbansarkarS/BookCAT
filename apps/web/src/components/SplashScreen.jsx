@@ -130,16 +130,12 @@ export default function SplashScreen({ onFinish }) {
   const [scanActive, setScanActive] = useState(false);
 
   useEffect(() => {
-    // Check if user has seen intro before
-    const seen = localStorage.getItem("bookcatIntroPlayed");
+    // Always plays — no localStorage check.
+    // splashDone lives in React memory in App.jsx, so:
+    //   ✅ plays every time you open / npm run dev
+    //   ✅ plays every full page load
+    //   ❌ does NOT replay on in-app navigation or hot-reload
 
-    if (seen) {
-      // Skip straight to done after a tiny delay
-      const t = setTimeout(() => onFinish(), 300);
-      return () => clearTimeout(t);
-    }
-
-    // Phase timeline
     const timers = [
       setTimeout(() => setPhase(1), 300),          // reveal logo
       setTimeout(() => setPhase(2), 1400),          // glow + pulse
@@ -159,7 +155,6 @@ export default function SplashScreen({ onFinish }) {
   }, [onFinish]);
 
   const handleShrinkDone = () => {
-    localStorage.setItem("bookcatIntroPlayed", "true");
     setPhase(5);
     // Small pause so the shrunk logo appears to dock before unmounting
     setTimeout(() => onFinish(), 180);
@@ -212,10 +207,7 @@ export default function SplashScreen({ onFinish }) {
             animate={{ opacity: 0.35 }}
             whileHover={{ opacity: 0.75 }}
             transition={{ delay: 1, duration: 0.5 }}
-            onClick={() => {
-              localStorage.setItem("bookcatIntroPlayed", "true");
-              onFinish();
-            }}
+            onClick={() => onFinish()}
             style={{
               position: "absolute",
               bottom: 32,
