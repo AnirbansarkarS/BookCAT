@@ -6,11 +6,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import {
-    getAllUsers, sendFriendRequest, acceptFriendRequest, removeFriend,
+    getAllUsers, getFriendBooks, sendFriendRequest, acceptFriendRequest, removeFriend,
     getFriends, getActivityFeed, sendMessage, getConversation,
     markMessagesAsRead, subscribeToMessages, subscribeToFriendRequests
 } from '../services/communityService';
-import { getUserBooks } from '../services/bookService';
+
 import { cn } from '../lib/utils';
 
 // ─────────────────────────────────────────────
@@ -283,7 +283,8 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
     useEffect(() => {
         (async () => {
             setLoading(true);
-            const data = await getUserBooks(friend.friend_id);
+            const data = await getFriendBooks(friend.friend_id);
+            console.log('📚 Friend library loaded:', data?.length, 'books', data?.[0]);
             setBooks(data || []);
             setLoading(false);
         })();
