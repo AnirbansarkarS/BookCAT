@@ -223,6 +223,30 @@ export const getActivityFeed = async (userId) => {
 };
 
 /**
+ * Get a friend's books (requires RLS fix - run FIX_friend_library_rls.sql)
+ */
+export const getFriendBooks = async (friendUserId) => {
+    try {
+        console.log("📚 Fetching books for friend:", friendUserId);
+        const { data, error } = await supabase
+            .from("books")
+            .select("*")
+            .eq("user_id", friendUserId)
+            .order("updated_at", { ascending: false });
+        if (error) {
+            console.error("❌ Error fetching friend books:", error);
+            if (error.code === "42501") console.error("⚠️ Run FIX_friend_library_rls.sql in Supabase!");
+            return [];
+        }
+        console.log("✅ Got", data?.length || 0, "books for friend");
+        return data || [];
+    } catch (error) {
+        console.error("Error fetching friend books:", error);
+        return [];
+    }
+};
+
+/**
  * Send message
  */
 export const sendMessage = async (senderId, receiverId, content) => {
