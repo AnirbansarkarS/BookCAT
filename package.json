@@ -12,8 +12,11 @@
         "format": "prettier --write \"**/*.{ts,tsx,md}\""
     },
     "devDependencies": {
-        "turbo": "latest",
-        "prettier": "latest"
+        "prettier": "latest",
+        "turbo": "latest"
     },
-    "packageManager": "npm@10.0.0"
+    "packageManager": "npm@10.0.0",
+    "dependencies": {
+        "framer-motion": "^12.34.2"
+    }
 }
