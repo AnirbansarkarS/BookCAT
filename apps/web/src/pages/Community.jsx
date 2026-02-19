@@ -84,7 +84,7 @@ function Avatar({ name = '?', src, size = 'md', dot }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// CHAT PANEL
+// CHAT PANEL (FIXED: Always full height)
 // ─────────────────────────────────────────────────────────────
 
 function ChatPanel({ friend, me, onClose, onViewLibrary }) {
@@ -262,7 +262,7 @@ function ChatPanel({ friend, me, onClose, onViewLibrary }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FRIEND LIBRARY PANEL
+// FRIEND LIBRARY PANEL (FIXED: Always full height)
 // ─────────────────────────────────────────────────────────────
 
 function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
@@ -327,7 +327,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                     </button>
                 </div>
 
-                {/* Stats grid — 2 cols mobile, 4 cols desktop */}
+                {/* Stats grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                         { label: 'Reading',  value: stats.reading,  color: 'text-sky-400'     },
@@ -410,7 +410,6 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                     : 'bg-white/[0.03] hover:bg-white/[0.055] border-white/[0.06]'
                             )}>
                             <div className="flex gap-3 p-3">
-                                {/* Cover */}
                                 <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-white/5 ring-1 ring-white/10">
                                     {book.cover_url
                                         ? <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
@@ -419,7 +418,6 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                           </div>
                                     }
                                 </div>
-                                {/* Info */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="min-w-0 flex-1">
@@ -435,7 +433,6 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                             <ChevronDown size={12} className={cn('text-text-muted/40 transition-transform', isOpen && 'rotate-180')} />
                                         </div>
                                     </div>
-                                    {/* Progress for active reads */}
                                     {(st === 'reading_now' || st === 're_reading') && book.total_pages > 0 && (
                                         <div className="mt-2">
                                             <div className="flex justify-between text-[10px] text-text-muted mb-1">
@@ -453,7 +450,6 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                 </div>
                             </div>
 
-                            {/* Expanded details */}
                             {isOpen && (
                                 <div className="px-3 pb-3 border-t border-white/[0.05] pt-2.5 space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
@@ -491,7 +487,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// COMMUNITY — MAIN
+// COMMUNITY — MAIN (FIXED: Panel always fills available space)
 // ─────────────────────────────────────────────────────────────
 
 export default function Community() {
@@ -504,12 +500,9 @@ export default function Community() {
     const [tab,       setTab]       = useState('discover');
     const [q,         setQ]         = useState('');
 
-    // Panel state — null | 'chat' | 'library'
     const [panel,  setPanel]  = useState(null);
     const [active, setActive] = useState(null);
-
-    // On mobile, panels cover the full screen
-    const [mobileView, setMobileView] = useState('list'); // 'list' | 'panel'
+    const [mobileView, setMobileView] = useState('list');
 
     const load = useCallback(async () => {
         if (!user) return;
@@ -562,10 +555,10 @@ export default function Community() {
         </div>
     );
 
-    // ── MOBILE: full-screen panel ──────────────────────────────
+    // Mobile full-screen panel
     if (mobileView === 'panel' && panel && active) {
         return (
-            <div className="fixed inset-0 z-50 bg-surface lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="fixed inset-0 z-50 bg-surface lg:hidden flex flex-col">
                 {panel === 'chat' && (
                     <ChatPanel friend={active} me={user} onClose={closePanel}
                         onViewLibrary={() => openPanel('library', active)} />
@@ -579,29 +572,24 @@ export default function Community() {
     }
 
     return (
-        <div className="flex gap-4 h-[calc(100vh-6rem)]">
-
-            {/* ═══════════ LEFT / MAIN LIST ═══════════ */}
+        <div className="flex gap-4 h-[calc(100vh-8rem)]">
+            {/* Left list */}
             <div className={cn(
                 'flex flex-col gap-3 min-h-0 w-full transition-all duration-300',
                 panel ? 'lg:w-[360px] lg:flex-shrink-0' : 'lg:flex-1'
             )}>
-                {/* Title */}
                 <div className="flex-shrink-0">
                     <h1 className="text-xl font-bold text-white">Community</h1>
-                    <p className="text-xs text-text-muted mt-0.5">Connect with readers who share your taste</p>
+                    <p className="text-xs text-text-muted mt-0.5">Connect with readers</p>
                 </div>
 
-                {/* Stat pills */}
                 <div className="flex gap-2 flex-wrap flex-shrink-0">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full text-xs text-sky-400">
                         <span className="font-bold">{friends.length}</span> Friends
                     </div>
                     <div className={cn(
                         'flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-xs',
-                        pendingIn.length
-                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                            : 'bg-white/5 border-white/10 text-text-muted'
+                        pendingIn.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/10 text-text-muted'
                     )}>
                         <span className="font-bold">{pendingIn.length}</span> Requests
                     </div>
@@ -610,7 +598,6 @@ export default function Community() {
                     </div>
                 </div>
 
-                {/* Pending friend requests */}
                 {pendingIn.length > 0 && (
                     <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-xl p-3 flex-shrink-0 space-y-2">
                         <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
@@ -624,13 +611,11 @@ export default function Community() {
                                     <p className="text-[10px] text-text-muted truncate">@{r.email?.split('@')[0]}</p>
                                 </div>
                                 <div className="flex gap-1.5">
-                                    <button
-                                        onClick={async () => { await acceptFriendRequest(r.friendship_id); load(); }}
+                                    <button onClick={async () => { await acceptFriendRequest(r.friendship_id); load(); }}
                                         className="p-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all active:scale-90">
                                         <Check size={13} />
                                     </button>
-                                    <button
-                                        onClick={async () => { await removeFriend(r.friendship_id); load(); }}
+                                    <button onClick={async () => { await removeFriend(r.friendship_id); load(); }}
                                         className="p-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all active:scale-90">
                                         <X size={13} />
                                     </button>
@@ -640,7 +625,6 @@ export default function Community() {
                     </div>
                 )}
 
-                {/* Tabs */}
                 <div className="flex p-0.5 bg-white/[0.04] border border-white/[0.06] rounded-xl flex-shrink-0">
                     {[
                         { id: 'discover', icon: Search,     label: 'Discover' },
@@ -648,17 +632,14 @@ export default function Community() {
                         { id: 'activity', icon: TrendingUp, label: 'Activity' },
                     ].map(t => (
                         <button key={t.id} onClick={() => setTab(t.id)}
-                            className={cn(
-                                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all',
-                                tab === t.id ? 'bg-primary text-white shadow-md' : 'text-text-muted hover:text-white hover:bg-white/5'
-                            )}>
+                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all',
+                                tab === t.id ? 'bg-primary text-white shadow-md' : 'text-text-muted hover:text-white hover:bg-white/5')}>
                             <t.icon size={12} />
                             {t.label}
                         </button>
                     ))}
                 </div>
 
-                {/* Search */}
                 {tab === 'discover' && (
                     <div className="relative flex-shrink-0">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted/40" />
@@ -669,10 +650,7 @@ export default function Community() {
                     </div>
                 )}
 
-                {/* ── List ── */}
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-4">
-
-                    {/* DISCOVER */}
                     {tab === 'discover' && (
                         filtered.length === 0
                             ? <p className="text-center text-text-muted text-sm py-10">No readers found</p>
@@ -697,8 +675,7 @@ export default function Community() {
                                                   </span>
                                                 : st === 'pending'
                                                 ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
-                                                : <button
-                                                      onClick={() => sendFriendRequest(user.id, u.id).then(load)}
+                                                : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
                                                       className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
                                                       <UserPlus size={9} /> Add
                                                   </button>
@@ -715,21 +692,15 @@ export default function Community() {
                                         {st === 'accepted' && fr && (
                                             <div className="flex gap-2 mt-2.5 pt-2.5 border-t border-white/[0.05]">
                                                 <button onClick={() => openPanel('library', fr)}
-                                                    className={cn(
-                                                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
-                                                        panel === 'library' && isActive
-                                                            ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
-                                                            : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border border-white/[0.07]'
-                                                    )}>
+                                                    className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
+                                                        panel === 'library' && isActive ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
+                                                            : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border border-white/[0.07]')}>
                                                     <Library size={11} /> Library
                                                 </button>
                                                 <button onClick={() => openPanel('chat', fr)}
-                                                    className={cn(
-                                                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
-                                                        panel === 'chat' && isActive
-                                                            ? 'bg-primary text-white border border-primary/50 shadow-md shadow-primary/20'
-                                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20'
-                                                    )}>
+                                                    className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
+                                                        panel === 'chat' && isActive ? 'bg-primary text-white border border-primary/50 shadow-md shadow-primary/20'
+                                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20')}>
                                                     <MessageSquare size={11} /> Chat
                                                 </button>
                                             </div>
@@ -739,13 +710,12 @@ export default function Community() {
                             })
                     )}
 
-                    {/* FRIENDS */}
                     {tab === 'friends' && (
                         friends.length === 0
                             ? <div className="text-center py-14 px-4">
                                   <Users className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
                                   <p className="text-white font-semibold text-sm">No friends yet</p>
-                                  <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover to find readers</p>
+                                  <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
                                   <button onClick={() => setTab('discover')}
                                       className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
                                       Discover Readers
@@ -754,9 +724,7 @@ export default function Community() {
                             : friends.map(fr => (
                                 <div key={fr.friend_id} className={cn(
                                     'border rounded-2xl p-3 transition-all',
-                                    active?.friend_id === fr.friend_id
-                                        ? 'border-primary/40 bg-primary/[0.04]'
-                                        : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.12]'
+                                    active?.friend_id === fr.friend_id ? 'border-primary/40 bg-primary/[0.04]' : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.12]'
                                 )}>
                                     <div className="flex items-center gap-3 mb-3">
                                         <Avatar name={fr.username || '?'} src={fr.avatar_url} dot="online" />
@@ -769,21 +737,15 @@ export default function Community() {
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => openPanel('library', fr)}
-                                            className={cn(
-                                                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
-                                                panel === 'library' && active?.friend_id === fr.friend_id
-                                                    ? 'bg-violet-500/25 text-violet-300 border-violet-500/30'
-                                                    : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border-white/[0.07]'
-                                            )}>
+                                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
+                                                panel === 'library' && active?.friend_id === fr.friend_id ? 'bg-violet-500/25 text-violet-300 border-violet-500/30'
+                                                    : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border-white/[0.07]')}>
                                             <Library size={11} /> Library
                                         </button>
                                         <button onClick={() => openPanel('chat', fr)}
-                                            className={cn(
-                                                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
-                                                panel === 'chat' && active?.friend_id === fr.friend_id
-                                                    ? 'bg-primary text-white border-primary/50 shadow-md shadow-primary/25'
-                                                    : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20'
-                                            )}>
+                                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
+                                                panel === 'chat' && active?.friend_id === fr.friend_id ? 'bg-primary text-white border-primary/50 shadow-md shadow-primary/25'
+                                                    : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20')}>
                                             <MessageSquare size={11} /> Chat
                                         </button>
                                     </div>
@@ -791,7 +753,6 @@ export default function Community() {
                             ))
                     )}
 
-                    {/* ACTIVITY */}
                     {tab === 'activity' && (
                         activity.length === 0
                             ? <div className="text-center py-14 px-4">
@@ -803,9 +764,7 @@ export default function Community() {
                                 <div key={a.id} className="flex gap-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] rounded-xl p-3 transition-all">
                                     <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
                                         a.activity_type === 'book_completed' ? 'bg-emerald-500/15' : 'bg-primary/15')}>
-                                        {a.activity_type === 'book_completed'
-                                            ? <CheckCircle size={14} className="text-emerald-400" />
-                                            : <Zap size={14} className="text-primary" />}
+                                        {a.activity_type === 'book_completed' ? <CheckCircle size={14} className="text-emerald-400" /> : <Zap size={14} className="text-primary" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm text-white leading-snug">
@@ -821,10 +780,10 @@ export default function Community() {
                 </div>
             </div>
 
-            {/* ═══════════ RIGHT PANEL (desktop only) ═══════════ */}
-            <div className="hidden lg:flex flex-1 min-w-0">
+            {/* RIGHT PANEL — FIXED: Always fills remaining space */}
+            <div className="hidden lg:flex lg:flex-1 lg:min-w-0">
                 {panel && active ? (
-                    <div className="flex-1 rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl">
+                    <div className="w-full h-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl flex flex-col">
                         {panel === 'chat' && (
                             <ChatPanel friend={active} me={user} onClose={closePanel}
                                 onViewLibrary={() => openPanel('library', active)} />
@@ -835,7 +794,7 @@ export default function Community() {
                         )}
                     </div>
                 ) : friends.length > 0 ? (
-                    <div className="flex-1 rounded-2xl border border-dashed border-white/[0.07] flex flex-col items-center justify-center text-center p-8 gap-5">
+                    <div className="w-full h-full rounded-2xl border border-dashed border-white/[0.07] flex flex-col items-center justify-center text-center p-8 gap-5">
                         <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
                             <MessageSquare className="w-7 h-7 text-text-muted/30" />
                         </div>

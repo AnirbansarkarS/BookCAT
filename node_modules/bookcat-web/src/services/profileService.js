@@ -1,64 +1,131 @@
-import { supabase } from '../lib/supabase'
+// src/services/profileService.js
+import { supabase } from '../lib/supabase';
 
 export const profileService = {
+    /**
+     * Get user profile
+     */
     async getProfile(userId) {
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
-                .single()
+                .single();
 
-            if (error) throw error
-            return { data, error: null }
+            if (error) throw error;
+            return { data, error: null };
         } catch (error) {
-            return { data: null, error }
+            console.error('Error fetching profile:', error);
+            return { data: null, error };
         }
     },
 
+    /**
+     * Update profile with all new enhanced fields
+     */
     async updateProfile(userId, updates) {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .update(updates)
+                .update({
+                    username: updates.username,
+                    bio: updates.bio,
+                    favorite_book: updates.favorite_book,
+                    favorite_author: updates.favorite_author,
+                    reading_goal_yearly: updates.reading_goal_yearly,
+                    favorite_genre: updates.favorite_genre,
+                    reading_speed: updates.reading_speed,
+                    preferred_format: updates.preferred_format,
+                    location: updates.location,
+                    fun_fact: updates.fun_fact,
+                })
                 .eq('id', userId)
                 .select()
-                .single()
+                .single();
 
-            if (error) throw error
-            return { data, error: null }
+            if (error) throw error;
+            return { data, error: null };
         } catch (error) {
-            return { data: null, error }
+            console.error('Error updating profile:', error);
+            return { data: null, error };
         }
     },
 
+    /**
+     * Upload avatar image
+     */
     async uploadAvatar(userId, file) {
         try {
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${userId}/${Math.random()}.${fileExt}`
-            const filePath = fileName
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${userId}-${Date.now()}.${fileExt}`;
+            const filePath = `avatars/${fileName}`;
 
-            // Upload file to storage
+            // Upload to storage
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, file, { upsert: true })
+                .upload(filePath, file, { upsert: true });
 
-            if (uploadError) throw uploadError
+            if (uploadError) throw uploadError;
 
             // Get public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('avatars')
-                .getPublicUrl(filePath)
+                .getPublicUrl(filePath);
 
             // Update profile with new avatar URL
-            const { data, error } = await this.updateProfile(userId, {
-                avatar_url: publicUrl,
-            })
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ avatar_url: publicUrl })
+                .eq('id', userId);
 
-            if (error) throw error
-            return { data, error: null }
+            if (updateError) throw updateError;
+
+            return { data: publicUrl, error: null };
         } catch (error) {
-            return { data: null, error }
+            console.error('Error uploading avatar:', error);
+            return { data: null, error };
         }
     },
-}
+
+    /**
+     * Get reading preferences
+     */
+    async getReadingPreferences(userId) {
+        try {
+            const { data, error } = await supabase
+                .from('reading_preferences')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error fetching reading preferences:', error);
+            return { data: null, error };
+        }
+    },
+
+    /**
+     * Update reading preferences
+     */
+    async updateReadingPreferences(userId, preferences) {
+        try {
+            const { data, error } = await supabase
+                .from('reading_preferences')
+                .upsert({
+                    user_id: userId,
+                    ...preferences,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating reading preferences:', error);
+            return { data: null, error };
+        }
+    },
+};
