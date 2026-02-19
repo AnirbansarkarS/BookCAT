@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
+import Discover from './pages/Discover';
 import Library from './pages/Library'
 import Community from './pages/Community'
 import Exchange from './pages/Exchange'
@@ -57,7 +58,8 @@ function App() {
                       </ProtectedRoute>
                     }
                   >
-                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route index element={<Navigate to="/discover" replace />} />
+                    <Route path="discover" element={<Discover />} />
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="library" element={<Library />} />
                     <Route path="stats" element={<Stats />} />
