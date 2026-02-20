@@ -43,7 +43,7 @@ export default function Library() {
     const [expandedId, setExpandedId] = useState(null);
     const [drafts, setDrafts] = useState({});
     const [savingId, setSavingId] = useState(null);
-    
+
     // Reading session states
     const [openingBookId, setOpeningBookId] = useState(null);
     const [readingSessionBook, setReadingSessionBook] = useState(null);
@@ -161,7 +161,7 @@ export default function Library() {
     // Handle book opening animation
     const handleOpenBook = (book) => {
         setOpeningBookId(book.id);
-        
+
         // Show opening animation
         setTimeout(() => {
             setShowIntentModal(true);
@@ -234,7 +234,7 @@ export default function Library() {
                 ...readingSessionBook,
                 current_page: safeCurrentPage,
             };
-            
+
             if (updatedBook.total_pages) {
                 updatedBook.progress = Math.min(100, Math.round((updatedBook.current_page / updatedBook.total_pages) * 100));
             }
@@ -248,7 +248,7 @@ export default function Library() {
                 console.error('Failed to finalize book progress after session:', updateError);
             }
 
-            setBooks(prev => prev.map(b => 
+            setBooks(prev => prev.map(b =>
                 b.id === updatedBook.id ? updatedBook : b
             ));
 
@@ -292,13 +292,13 @@ export default function Library() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex gap-2 p-1 bg-surface rounded-xl border border-white/5 w-fit">
+                    <div className="flex gap-2 p-1 bg-surface rounded-xl border border-white/5 w-fit overflow-x-auto scrollbar-hide">
                         {['All', 'Reading', 'Want to Read', 'Completed', 'Re-reading'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setFilter(tab)}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
                                     filter === tab
                                         ? "bg-primary text-white shadow-lg shadow-primary/20"
                                         : "text-text-secondary hover:text-white hover:bg-white/5"
@@ -355,7 +355,7 @@ export default function Library() {
 
             {/* Books Grid */}
             {!isLoading && filteredBooks.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                     {filteredBooks.map((book) => {
                         const StatusIcon = statusConfig[book.status]?.icon || BookOpen;
                         const draft = drafts[book.id] || buildDraft(book);
@@ -373,19 +373,19 @@ export default function Library() {
                         const draftCurrent = Number.isFinite(parseInt(draft.current_page))
                             ? parseInt(draft.current_page)
                             : (book.current_page || 0);
-                        
+
                         const systemTag = getSystemTag(book);
                         const userTags = getUserTags(book);
 
                         return (
-                            <div 
-                                key={book.id} 
+                            <div
+                                key={book.id}
                                 className={cn(
                                     "group relative bg-surface rounded-2xl overflow-hidden border border-white/5 transition-all duration-200",
                                     "hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2",
                                     "hover:border-primary/50",
-                                    isOpening 
-                                        ? "scale-105 shadow-2xl shadow-primary/30 z-50" 
+                                    isOpening
+                                        ? "scale-105 shadow-2xl shadow-primary/30 z-50"
                                         : ""
                                 )}
                                 style={{
@@ -402,7 +402,7 @@ export default function Library() {
                                     const centerY = rect.height / 2;
                                     const rotateX = (y - centerY) / 20;
                                     const rotateY = (centerX - x) / 20;
-                                    
+
                                     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`;
                                 }}
                                 onMouseLeave={(e) => {
@@ -428,12 +428,12 @@ export default function Library() {
 
                                     {/* Progress bar under cover */}
                                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                                        <div 
+                                        <div
                                             className={cn(
                                                 "h-full transition-all duration-500",
                                                 progressValue > 0 ? "bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.6)]" : "bg-white/20"
                                             )}
-                                            style={{ width: `${progressValue}%` }} 
+                                            style={{ width: `${progressValue}%` }}
                                         />
                                     </div>
 
@@ -519,14 +519,14 @@ export default function Library() {
                                             <span className="font-semibold">{progressValue}%</span>
                                         </div>
                                         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            <div 
+                                            <div
                                                 className={cn(
                                                     "h-full transition-all duration-700 ease-out",
-                                                    progressValue === 100 
-                                                        ? "bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse-glow" 
+                                                    progressValue === 100
+                                                        ? "bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse-glow"
                                                         : "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.4)]"
-                                                )} 
-                                                style={{ width: `${progressValue}%` }} 
+                                                )}
+                                                style={{ width: `${progressValue}%` }}
                                             />
                                         </div>
                                         {progressValue === 100 && (
@@ -559,7 +559,7 @@ export default function Library() {
                                                         onChange={(e) => {
                                                             const newStatus = e.target.value;
                                                             const newSystemTag = statusConfig[newStatus]?.systemTag;
-                                                            updateDraft(book.id, { 
+                                                            updateDraft(book.id, {
                                                                 status: newStatus,
                                                                 systemTag: newSystemTag
                                                             });
@@ -688,9 +688,9 @@ export default function Library() {
                                     )}
                                 >
                                     <div className="flex flex-col items-center gap-2">
-                                        {React.createElement(intent.icon, { 
-                                            size: 24, 
-                                            className: intent.color 
+                                        {React.createElement(intent.icon, {
+                                            size: 24,
+                                            className: intent.color
                                         })}
                                         <span className="text-sm font-medium text-white">{intent.label}</span>
                                     </div>
@@ -726,7 +726,8 @@ export default function Library() {
                 />
             )}
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes fade-in {
                     from { opacity: 0; }
                     to { opacity: 1; }

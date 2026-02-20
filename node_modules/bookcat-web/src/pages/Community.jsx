@@ -41,11 +41,11 @@ const fmt = {
 };
 
 const STATUS = {
-    finished:     { label: 'Finished',     cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-    reading_now:  { label: 'Reading',      cls: 'text-sky-400    bg-sky-500/10    border-sky-500/20'    },
-    want_to_read: { label: 'Want to Read', cls: 'text-amber-400  bg-amber-500/10  border-amber-500/20'  },
-    abandoned:    { label: 'Abandoned',    cls: 'text-slate-400  bg-slate-500/10  border-slate-500/20'  },
-    re_reading:   { label: 'Re-reading',   cls: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
+    finished: { label: 'Finished', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+    reading_now: { label: 'Reading', cls: 'text-sky-400    bg-sky-500/10    border-sky-500/20' },
+    want_to_read: { label: 'Want to Read', cls: 'text-amber-400  bg-amber-500/10  border-amber-500/20' },
+    abandoned: { label: 'Abandoned', cls: 'text-slate-400  bg-slate-500/10  border-slate-500/20' },
+    re_reading: { label: 'Re-reading', cls: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
 };
 
 function bookStatus(book) {
@@ -70,7 +70,7 @@ function Avatar({ name = '?', src, size = 'md', dot }) {
                 ? <img src={src} alt={name} className={cn(sz[size], 'rounded-full object-cover ring-2 ring-white/10')} />
                 : <div className={cn(sz[size], 'rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center font-bold text-white ring-2 ring-white/10 select-none')}>
                     {name[0].toUpperCase()}
-                  </div>
+                </div>
             }
             {dot && (
                 <span className={cn(
@@ -282,11 +282,11 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
     }, [friend.friend_id]);
 
     const TABS = [
-        { id: 'all',          label: 'All'     },
-        { id: 'reading_now',  label: 'Reading' },
-        { id: 'finished',     label: 'Done'    },
-        { id: 'want_to_read', label: 'Want'    },
-        { id: 'abandoned',    label: 'Dropped' },
+        { id: 'all', label: 'All' },
+        { id: 'reading_now', label: 'Reading' },
+        { id: 'finished', label: 'Done' },
+        { id: 'want_to_read', label: 'Want' },
+        { id: 'abandoned', label: 'Dropped' },
     ];
 
     const count = id => id === 'all' ? books.length : books.filter(b => bookStatus(b) === id).length;
@@ -301,10 +301,10 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
     });
 
     const stats = {
-        reading:  count('reading_now'),
+        reading: count('reading_now'),
         finished: count('finished'),
-        hours:    Math.round(books.reduce((s, b) => s + (b.reading_time_minutes || 0), 0) / 60),
-        pages:    books.reduce((s, b) => s + (b.current_page || 0), 0),
+        hours: Math.round(books.reduce((s, b) => s + (b.reading_time_minutes || 0), 0) / 60),
+        pages: books.reduce((s, b) => s + (b.current_page || 0), 0),
     };
 
     return (
@@ -330,10 +330,10 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                        { label: 'Reading',  value: stats.reading,  color: 'text-sky-400'     },
+                        { label: 'Reading', value: stats.reading, color: 'text-sky-400' },
                         { label: 'Finished', value: stats.finished, color: 'text-emerald-400' },
-                        { label: 'Hours',    value: stats.hours,    color: 'text-violet-400'  },
-                        { label: 'Pages',    value: stats.pages,    color: 'text-amber-400'   },
+                        { label: 'Hours', value: stats.hours, color: 'text-violet-400' },
+                        { label: 'Pages', value: stats.pages, color: 'text-amber-400' },
                     ].map(s => (
                         <div key={s.label} className="bg-white/[0.04] border border-white/[0.06] rounded-lg py-2 text-center">
                             <div className={cn('text-lg font-bold leading-none', s.color)}>{s.value}</div>
@@ -415,7 +415,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                         ? <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
                                         : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-violet-500/20">
                                             <BookOpen className="w-4 h-4 text-primary/60" />
-                                          </div>
+                                        </div>
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -492,15 +492,15 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
 
 export default function Community() {
     const { user } = useAuth();
-    const [allUsers,  setAllUsers]  = useState([]);
-    const [friends,   setFriends]   = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
+    const [friends, setFriends] = useState([]);
     const [pendingIn, setPendingIn] = useState([]);
-    const [activity,  setActivity]  = useState([]);
-    const [loading,   setLoading]   = useState(true);
-    const [tab,       setTab]       = useState('discover');
-    const [q,         setQ]         = useState('');
+    const [activity, setActivity] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [tab, setTab] = useState('discover');
+    const [q, setQ] = useState('');
 
-    const [panel,  setPanel]  = useState(null);
+    const [panel, setPanel] = useState(null);
     const [active, setActive] = useState(null);
     const [mobileView, setMobileView] = useState('list');
 
@@ -558,7 +558,7 @@ export default function Community() {
     // Mobile full-screen panel
     if (mobileView === 'panel' && panel && active) {
         return (
-            <div className="fixed inset-0 z-50 bg-surface lg:hidden flex flex-col">
+            <div className="fixed inset-0 z-50 bg-surface lg:hidden flex flex-col pb-20">
                 {panel === 'chat' && (
                     <ChatPanel friend={active} me={user} onClose={closePanel}
                         onViewLibrary={() => openPanel('library', active)} />
@@ -627,8 +627,8 @@ export default function Community() {
 
                 <div className="flex p-0.5 bg-white/[0.04] border border-white/[0.06] rounded-xl flex-shrink-0">
                     {[
-                        { id: 'discover', icon: Search,     label: 'Discover' },
-                        { id: 'friends',  icon: Users,      label: 'Friends'  },
+                        { id: 'discover', icon: Search, label: 'Discover' },
+                        { id: 'friends', icon: Users, label: 'Friends' },
                         { id: 'activity', icon: TrendingUp, label: 'Activity' },
                     ].map(t => (
                         <button key={t.id} onClick={() => setTab(t.id)}
@@ -671,14 +671,14 @@ export default function Community() {
                                             </div>
                                             {st === 'accepted'
                                                 ? <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 flex-shrink-0">
-                                                      <UserCheck size={9} /> Friends
-                                                  </span>
+                                                    <UserCheck size={9} /> Friends
+                                                </span>
                                                 : st === 'pending'
-                                                ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
-                                                : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
-                                                      className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
-                                                      <UserPlus size={9} /> Add
-                                                  </button>
+                                                    ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
+                                                    : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
+                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
+                                                        <UserPlus size={9} /> Add
+                                                    </button>
                                             }
                                         </div>
                                         <div className="flex gap-4 mt-2 px-0.5">
@@ -713,14 +713,14 @@ export default function Community() {
                     {tab === 'friends' && (
                         friends.length === 0
                             ? <div className="text-center py-14 px-4">
-                                  <Users className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
-                                  <p className="text-white font-semibold text-sm">No friends yet</p>
-                                  <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
-                                  <button onClick={() => setTab('discover')}
-                                      className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
-                                      Discover Readers
-                                  </button>
-                              </div>
+                                <Users className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
+                                <p className="text-white font-semibold text-sm">No friends yet</p>
+                                <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
+                                <button onClick={() => setTab('discover')}
+                                    className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
+                                    Discover Readers
+                                </button>
+                            </div>
                             : friends.map(fr => (
                                 <div key={fr.friend_id} className={cn(
                                     'border rounded-2xl p-3 transition-all',
@@ -756,10 +756,10 @@ export default function Community() {
                     {tab === 'activity' && (
                         activity.length === 0
                             ? <div className="text-center py-14 px-4">
-                                  <TrendingUp className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
-                                  <p className="text-white font-semibold text-sm">No activity yet</p>
-                                  <p className="text-text-muted text-xs mt-1">Complete reading sessions to see activity</p>
-                              </div>
+                                <TrendingUp className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
+                                <p className="text-white font-semibold text-sm">No activity yet</p>
+                                <p className="text-text-muted text-xs mt-1">Complete reading sessions to see activity</p>
+                            </div>
                             : activity.map(a => (
                                 <div key={a.id} className="flex gap-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] rounded-xl p-3 transition-all">
                                     <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
