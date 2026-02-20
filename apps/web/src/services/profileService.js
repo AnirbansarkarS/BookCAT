@@ -22,7 +22,7 @@ export const profileService = {
     },
 
     /**
-     * Update profile with all new enhanced fields
+     * Update profile with all enhanced fields
      */
     async updateProfile(userId, updates) {
         try {
@@ -53,25 +53,45 @@ export const profileService = {
     },
 
     /**
-     * Upload avatar image
+     * Upload avatar image (FIXED: simpler approach)
      */
     async uploadAvatar(userId, file) {
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `${userId}-${Date.now()}.${fileExt}`;
-            const filePath = `avatars/${fileName}`;
+            const filePath = fileName; // Simple path, no subfolder
 
-            // Upload to storage
-            const { error: uploadError } = await supabase.storage
+            console.log('📤 Uploading avatar:', filePath);
+
+            // Upload to storage (upsert overwrites existing)
+            const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, file, { upsert: true });
+                .upload(filePath, file, { 
+                    upsert: true,
+                    contentType: file.type,
+                    cacheControl: '3600'
+                });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                console.error('Upload error:', uploadError);
+                
+                // If bucket doesn't exist, provide helpful message
+                if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
+                    throw new Error('Avatars bucket not found. Please create it in Supabase:\n\n1. Go to Storage\n2. Click "New Bucket"\n3. Name: avatars\n4. Public: YES\n5. Create');
+                }
+                
+                throw uploadError;
+            }
+
+            console.log('✅ Upload successful:', uploadData);
 
             // Get public URL
-            const { data: { publicUrl } } = supabase.storage
+            const { data: urlData } = supabase.storage
                 .from('avatars')
                 .getPublicUrl(filePath);
+
+            const publicUrl = urlData.publicUrl;
+            console.log('🔗 Public URL:', publicUrl);
 
             // Update profile with new avatar URL
             const { error: updateError } = await supabase
@@ -79,9 +99,14 @@ export const profileService = {
                 .update({ avatar_url: publicUrl })
                 .eq('id', userId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                console.error('Profile update error:', updateError);
+                throw updateError;
+            }
 
+            console.log('✅ Profile updated with avatar URL');
             return { data: publicUrl, error: null };
+
         } catch (error) {
             console.error('Error uploading avatar:', error);
             return { data: null, error };
@@ -97,9 +122,9 @@ export const profileService = {
                 .from('reading_preferences')
                 .select('*')
                 .eq('user_id', userId)
-                .single();
+                .maybeSingle();
 
-            if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+            if (error && error.code !== 'PGRST116') throw error;
             return { data, error: null };
         } catch (error) {
             console.error('Error fetching reading preferences:', error);

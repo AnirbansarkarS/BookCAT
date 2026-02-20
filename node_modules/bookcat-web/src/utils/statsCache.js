@@ -1,192 +1,259 @@
 // src/utils/statsCache.js
-// Simple cache system for reading stats
+// BACKWARD COMPATIBLE VERSION - works with old imports
+import { supabase } from '../lib/supabase';
 
 const CACHE_KEYS = {
-    STATS: 'bookcat_stats_cache',
-    BOOKS: 'bookcat_books_cache',
-    SESSIONS: 'bookcat_sessions_cache',
-    LAST_UPDATE: 'bookcat_last_update',
+    ACTIVE_SESSION: 'activeReadingSession',
+    STATS: 'readingStats',
+    LAST_SYNC: 'lastStatsSync',
 };
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const SYNC_INTERVAL = 5 * 60 * 1000;
 
-class StatsCache {
-    // Save stats to cache
-    saveStats(stats) {
-        try {
-            const cacheData = {
-                data: stats,
-                timestamp: Date.now(),
+// ═══════════════════════════════════════════════════════════
+// ACTIVE SESSION (Supabase + localStorage)
+// ═══════════════════════════════════════════════════════════
+
+export const startReadingSession = async (userId, bookId, bookData) => {
+    const sessionData = {
+        bookId,
+        bookTitle: bookData.title,
+        bookCover: bookData.cover_url,
+        startTime: Date.now(),
+        elapsedSeconds: 0,
+        durationMinutes: 0,
+        currentPage: bookData.current_page || 0,
+        totalPages: bookData.total_pages || 0,
+    };
+
+    localStorage.setItem(CACHE_KEYS.ACTIVE_SESSION, JSON.stringify(sessionData));
+
+    try {
+        await supabase.from('active_sessions').upsert({
+            user_id: userId,
+            book_id: bookId,
+            started_at: new Date(sessionData.startTime).toISOString(),
+            elapsed_seconds: 0,
+            current_page: sessionData.currentPage,
+            session_data: sessionData,
+        }, { onConflict: 'user_id,book_id' });
+    } catch (err) {
+        console.warn('Could not sync to DB:', err);
+    }
+
+    console.log('📖 Reading session started:', bookData.title);
+    return sessionData;
+};
+
+export const getActiveSession = async (userId) => {
+    try {
+        const { data } = await supabase
+            .from('active_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (data) {
+            const session = {
+                bookId: data.book_id,
+                bookTitle: data.session_data?.bookTitle || '',
+                bookCover: data.session_data?.bookCover || '',
+                startTime: new Date(data.started_at).getTime(),
+                elapsedSeconds: data.elapsed_seconds || 0,
+                durationMinutes: Math.floor((data.elapsed_seconds || 0) / 60),
+                currentPage: data.current_page || 0,
+                totalPages: data.session_data?.totalPages || 0,
             };
-            localStorage.setItem(CACHE_KEYS.STATS, JSON.stringify(cacheData));
-            console.log('💾 Stats cached:', stats);
-        } catch (error) {
-            console.error('Failed to cache stats:', error);
+            localStorage.setItem(CACHE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
+            console.log('📦 Retrieved active session from DB');
+            return session;
+        }
+    } catch (err) {
+        console.warn('DB fetch failed, using localStorage:', err);
+    }
+
+    const cached = localStorage.getItem(CACHE_KEYS.ACTIVE_SESSION);
+    if (cached) {
+        console.log('📦 Retrieved active session from localStorage');
+        return JSON.parse(cached);
+    }
+    return null;
+};
+
+export const updateActiveSession = async (userId, updates) => {
+    const session = await getActiveSession(userId);
+    if (!session) return null;
+
+    const updated = { ...session, ...updates };
+    localStorage.setItem(CACHE_KEYS.ACTIVE_SESSION, JSON.stringify(updated));
+
+    try {
+        await supabase.from('active_sessions').update({
+            elapsed_seconds: updated.elapsedSeconds,
+            current_page: updated.currentPage,
+            session_data: updated,
+            last_updated: new Date().toISOString(),
+        }).eq('user_id', userId).eq('book_id', session.bookId);
+    } catch (err) {
+        console.warn('Could not sync update:', err);
+    }
+
+    return updated;
+};
+
+export const endReadingSession = async (userId) => {
+    const session = await getActiveSession(userId);
+    if (!session) return null;
+
+    const durationMinutes = Math.max(1, session.durationMinutes);
+
+    try {
+        const { data } = await supabase.from('reading_sessions').insert([{
+            user_id: userId,
+            book_id: session.bookId,
+            duration_minutes: durationMinutes,
+            pages_read: 0,
+            start_time: new Date(session.startTime).toISOString(),
+            end_time: new Date().toISOString(),
+            elapsed_seconds: session.elapsedSeconds,
+            session_data: session,
+        }]).select().single();
+
+        await supabase.from('active_sessions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('book_id', session.bookId);
+
+        localStorage.removeItem(CACHE_KEYS.ACTIVE_SESSION);
+        console.log('✅ Reading session ended');
+        return data;
+    } catch (error) {
+        console.error('Error ending session:', error);
+        return null;
+    }
+};
+
+export const cancelActiveSession = async (userId) => {
+    const session = await getActiveSession(userId);
+    if (!session) return;
+
+    try {
+        await supabase.from('active_sessions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('book_id', session.bookId);
+    } catch (err) {
+        console.warn('Could not delete from DB:', err);
+    }
+
+    localStorage.removeItem(CACHE_KEYS.ACTIVE_SESSION);
+    console.log('🗑️ Active session cancelled');
+};
+
+export const getCachedStats = async (userId, fetchFn) => {
+    const lastSync = localStorage.getItem(CACHE_KEYS.LAST_SYNC);
+    const now = Date.now();
+
+    if (lastSync && (now - parseInt(lastSync)) < SYNC_INTERVAL) {
+        const cached = localStorage.getItem(CACHE_KEYS.STATS);
+        if (cached) {
+            console.log('📊 Using cached stats');
+            return JSON.parse(cached);
         }
     }
 
-    // Get stats from cache
-    getStats() {
-        try {
-            const cached = localStorage.getItem(CACHE_KEYS.STATS);
-            if (!cached) return null;
+    console.log('🔄 Fetching fresh stats...');
+    const stats = await fetchFn();
+    localStorage.setItem(CACHE_KEYS.STATS, JSON.stringify(stats));
+    localStorage.setItem(CACHE_KEYS.LAST_SYNC, now.toString());
+    return stats;
+};
 
-            const { data, timestamp } = JSON.parse(cached);
-            const age = Date.now() - timestamp;
+export const invalidateStatsCache = () => {
+    localStorage.removeItem(CACHE_KEYS.STATS);
+    localStorage.removeItem(CACHE_KEYS.LAST_SYNC);
+    console.log('🗑️ Stats cache invalidated');
+};
 
-            // Return cached data if less than 5 minutes old
-            if (age < CACHE_DURATION) {
-                console.log('📦 Using cached stats (age: ' + Math.floor(age / 1000) + 's)');
-                return data;
-            }
+let syncInterval = null;
 
-            console.log('🕐 Cache expired (age: ' + Math.floor(age / 1000) + 's)');
+export const startAutoSync = (userId) => {
+    if (syncInterval) return;
+
+    syncInterval = setInterval(async () => {
+        const session = await getActiveSession(userId);
+        if (session) {
+            await updateActiveSession(userId, {
+                elapsedSeconds: Math.floor((Date.now() - session.startTime) / 1000),
+                durationMinutes: Math.floor((Date.now() - session.startTime) / 60000),
+            });
+            console.log('🔄 Auto-synced active session');
+        }
+    }, 30000);
+
+    console.log('🚀 Auto-sync started');
+};
+
+export const stopAutoSync = () => {
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+        console.log('🛑 Auto-sync stopped');
+    }
+};
+
+export const recoverActiveSession = async (userId) => {
+    try {
+        const { data } = await supabase
+            .from('active_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (!data) return null;
+
+        const lastUpdated = new Date(data.last_updated).getTime();
+        if (Date.now() - lastUpdated > 24 * 60 * 60 * 1000) {
+            await supabase.from('active_sessions').delete().eq('id', data.id);
             return null;
-        } catch (error) {
-            console.error('Failed to get cached stats:', error);
-            return null;
         }
+
+        const session = {
+            bookId: data.book_id,
+            bookTitle: data.session_data?.bookTitle || '',
+            bookCover: data.session_data?.bookCover || '',
+            startTime: new Date(data.started_at).getTime(),
+            elapsedSeconds: data.elapsed_seconds || 0,
+            durationMinutes: Math.floor((data.elapsed_seconds || 0) / 60),
+            currentPage: data.current_page || 0,
+            totalPages: data.session_data?.totalPages || 0,
+        };
+
+        localStorage.setItem(CACHE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
+        console.log('🔄 Recovered active session from DB');
+        return session;
+    } catch (err) {
+        console.error('Error recovering session:', err);
+        return null;
     }
+};
 
-    // Save books to cache
-    saveBooks(books) {
-        try {
-            const cacheData = {
-                data: books,
-                timestamp: Date.now(),
-            };
-            localStorage.setItem(CACHE_KEYS.BOOKS, JSON.stringify(cacheData));
-            console.log('💾 Books cached:', books.length, 'books');
-        } catch (error) {
-            console.error('Failed to cache books:', error);
-        }
-    }
+// ═══════════════════════════════════════════════════════════
+// BACKWARD COMPATIBILITY - OLD API
+// ═══════════════════════════════════════════════════════════
 
-    // Get books from cache
-    getBooks() {
-        try {
-            const cached = localStorage.getItem(CACHE_KEYS.BOOKS);
-            if (!cached) return null;
+export const statsCache = {
+    startSession: startReadingSession,
+    getActive: getActiveSession,
+    updateActive: updateActiveSession,
+    endSession: endReadingSession,
+    cancelSession: cancelActiveSession,
+    getCached: getCachedStats,
+    invalidate: invalidateStatsCache,
+    startSync: startAutoSync,
+    stopSync: stopAutoSync,
+    recover: recoverActiveSession,
+};
 
-            const { data, timestamp } = JSON.parse(cached);
-            const age = Date.now() - timestamp;
-
-            if (age < CACHE_DURATION) {
-                console.log('📦 Using cached books (age: ' + Math.floor(age / 1000) + 's)');
-                return data;
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Failed to get cached books:', error);
-            return null;
-        }
-    }
-
-    // Save sessions to cache
-    saveSessions(sessions) {
-        try {
-            const cacheData = {
-                data: sessions,
-                timestamp: Date.now(),
-            };
-            localStorage.setItem(CACHE_KEYS.SESSIONS, JSON.stringify(cacheData));
-            console.log('💾 Sessions cached:', sessions.length, 'sessions');
-        } catch (error) {
-            console.error('Failed to cache sessions:', error);
-        }
-    }
-
-    // Get sessions from cache
-    getSessions() {
-        try {
-            const cached = localStorage.getItem(CACHE_KEYS.SESSIONS);
-            if (!cached) return null;
-
-            const { data, timestamp } = JSON.parse(cached);
-            const age = Date.now() - timestamp;
-
-            if (age < CACHE_DURATION) {
-                console.log('📦 Using cached sessions (age: ' + Math.floor(age / 1000) + 's)');
-                return data;
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Failed to get cached sessions:', error);
-            return null;
-        }
-    }
-
-    // Invalidate all cache (force refresh)
-    invalidate() {
-        console.log('🗑️ Invalidating all cache');
-        localStorage.removeItem(CACHE_KEYS.STATS);
-        localStorage.removeItem(CACHE_KEYS.BOOKS);
-        localStorage.removeItem(CACHE_KEYS.SESSIONS);
-    }
-
-    // Update last update timestamp
-    setLastUpdate() {
-        localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
-    }
-
-    // Get last update timestamp
-    getLastUpdate() {
-        const timestamp = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-        return timestamp ? parseInt(timestamp) : null;
-    }
-
-    // Check if cache is fresh (updated in last minute)
-    isFresh() {
-        const lastUpdate = this.getLastUpdate();
-        if (!lastUpdate) return false;
-
-        const age = Date.now() - lastUpdate;
-        return age < 60000; // 1 minute
-    }
-
-    // Active session management
-    saveActiveSession(sessionData) {
-        try {
-            const cacheData = {
-                data: sessionData,
-                timestamp: Date.now(),
-            };
-            localStorage.setItem('bookcat_active_session', JSON.stringify(cacheData));
-            console.log('💾 Active session cached:', sessionData);
-        } catch (error) {
-            console.error('Failed to cache active session:', error);
-        }
-    }
-
-    getActiveSession() {
-        try {
-            const cached = localStorage.getItem('bookcat_active_session');
-            if (!cached) return null;
-
-            const { data, timestamp } = JSON.parse(cached);
-            console.log('📦 Retrieved active session:', data);
-            return data;
-        } catch (error) {
-            console.error('Failed to get active session:', error);
-            return null;
-        }
-    }
-
-    clearActiveSession() {
-        try {
-            localStorage.removeItem('bookcat_active_session');
-            console.log('🗑️ Active session cleared');
-        } catch (error) {
-            console.error('Failed to clear active session:', error);
-        }
-    }
-
-    hasActiveSession() {
-        return localStorage.getItem('bookcat_active_session') !== null;
-    }
-}
-
-export const statsCache = new StatsCache();
-
+// Also export as default for compatibility
+export default statsCache;
