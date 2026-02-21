@@ -48,6 +48,11 @@ export default function Stats() {
     useEffect(() => {
         loadData();
 
+        // Real-time refresh every 30 seconds
+        const refreshInterval = setInterval(() => {
+            loadData();
+        }, 30000);
+
         const handleStatsRefresh = () => {
             loadData();
         };
@@ -57,6 +62,7 @@ export default function Stats() {
         eventBus.on(EVENTS.STATS_REFRESH, handleStatsRefresh);
 
         return () => {
+            clearInterval(refreshInterval);
             eventBus.off(EVENTS.SESSION_COMPLETED, handleStatsRefresh);
             eventBus.off(EVENTS.BOOK_UPDATED, handleStatsRefresh);
             eventBus.off(EVENTS.STATS_REFRESH, handleStatsRefresh);
@@ -423,31 +429,119 @@ export default function Stats() {
             </div>
 
             {/* ========== WEEKLY TIME GRAPH ========== */}
-            <div className="bg-surface border border-white/10 rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-6">
-                    <BarChart3 className="w-6 h-6 text-primary" />
-                    <h2 className="text-xl font-bold text-white">Weekly Reading Time</h2>
+            <div className="bg-surface border border-white/10 rounded-2xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                        <h2 className="text-lg sm:text-xl font-bold text-white">Weekly Reading Time</h2>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        <span className="hidden sm:inline">Real-time</span>
+                    </div>
                 </div>
 
-                <div className="flex items-end justify-between gap-2 h-48">
-                    {weeklyData.map((minutes, index) => {
-                        const height = maxWeeklyTime > 0 ? (minutes / maxWeeklyTime) * 100 : 0;
-                        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                        const dayIndex = (new Date().getDay() - 6 + index + 7) % 7;
-                        
-                        return (
-                            <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                                <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden" style={{ height: '100%' }}>
-                                    <div 
-                                        className="absolute bottom-0 w-full bg-gradient-to-t from-primary to-blue-400 rounded-t-lg transition-all duration-500"
-                                        style={{ height: `${height}%` }}
-                                    />
-                                </div>
-                                <div className="text-xs text-text-muted">{dayNames[dayIndex]}</div>
-                                <div className="text-xs font-semibold text-white">{minutes}m</div>
-                            </div>
-                        );
-                    })}
+                {/* Graph Container */}
+                <div className="relative">
+                    {/* Y-axis labels */}
+                    <div className="absolute left-0 top-0 bottom-8 w-8 sm:w-10 flex flex-col justify-between text-[10px] sm:text-xs text-text-muted">
+                        <span>{maxWeeklyTime}m</span>
+                        <span>{Math.round(maxWeeklyTime * 0.5)}m</span>
+                        <span>0m</span>
+                    </div>
+
+                    {/* Graph Area */}
+                    <div className="ml-8 sm:ml-10">
+                        {/* Grid lines */}
+                        <div className="absolute left-8 sm:left-10 right-0 top-0 h-40 sm:h-48 flex flex-col justify-between pointer-events-none">
+                            <div className="border-b border-white/5 w-full" />
+                            <div className="border-b border-white/5 w-full" />
+                            <div className="border-b border-white/5 w-full" />
+                        </div>
+
+                        {/* Bars */}
+                        <div className="flex items-end justify-between gap-1 sm:gap-2 h-40 sm:h-48 relative">
+                            {weeklyData.map((minutes, index) => {
+                                const height = maxWeeklyTime > 0 ? (minutes / maxWeeklyTime) * 100 : 0;
+                                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                const dayIndex = (new Date().getDay() - 6 + index + 7) % 7;
+                                const isToday = index === 6;
+                                
+                                return (
+                                    <div key={index} className="flex-1 flex flex-col items-center group relative">
+                                        {/* Tooltip */}
+                                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface border border-white/20 rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap shadow-lg">
+                                            <div className="text-xs font-bold text-white">{minutes}m</div>
+                                            <div className="text-[10px] text-text-muted">{dayNames[dayIndex]}</div>
+                                        </div>
+
+                                        {/* Bar container */}
+                                        <div className="w-full h-full flex items-end">
+                                            <div 
+                                                className={cn(
+                                                    "w-full rounded-t-md sm:rounded-t-lg transition-all duration-700 ease-out relative overflow-hidden cursor-pointer",
+                                                    isToday 
+                                                        ? "bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/20" 
+                                                        : "bg-gradient-to-t from-primary to-blue-400",
+                                                    "hover:opacity-90 hover:scale-105 origin-bottom"
+                                                )}
+                                                style={{ 
+                                                    height: `${Math.max(height, minutes > 0 ? 4 : 0)}%`,
+                                                    animationDelay: `${index * 100}ms`
+                                                }}
+                                            >
+                                                {/* Shine effect */}
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                
+                                                {/* Pulse for today */}
+                                                {isToday && minutes > 0 && (
+                                                    <div className="absolute inset-0 bg-emerald-400/30 animate-pulse rounded-t-md sm:rounded-t-lg" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Day label */}
+                                        <div className={cn(
+                                            "mt-2 text-[10px] sm:text-xs transition-colors",
+                                            isToday ? "text-emerald-400 font-semibold" : "text-text-muted"
+                                        )}>
+                                            {dayNames[dayIndex]}
+                                        </div>
+                                        
+                                        {/* Minutes label */}
+                                        <div className={cn(
+                                            "text-[10px] sm:text-xs font-semibold",
+                                            isToday ? "text-emerald-400" : "text-white/80"
+                                        )}>
+                                            {minutes > 0 ? `${minutes}m` : '-'}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Summary row */}
+                <div className="mt-4 sm:mt-6 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 sm:gap-4">
+                    <div className="text-center">
+                        <div className="text-lg sm:text-2xl font-bold text-white">
+                            {weeklyData.reduce((a, b) => a + b, 0)}m
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-text-muted">Total This Week</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-lg sm:text-2xl font-bold text-blue-400">
+                            {Math.round(weeklyData.reduce((a, b) => a + b, 0) / 7)}m
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-text-muted">Daily Average</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-lg sm:text-2xl font-bold text-emerald-400">
+                            {weeklyData[6]}m
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-text-muted">Today</div>
+                    </div>
                 </div>
             </div>
 
