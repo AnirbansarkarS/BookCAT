@@ -6,6 +6,9 @@ const CACHE_KEYS = {
     ACTIVE_SESSION: 'activeReadingSession',
     STATS: 'readingStats',
     LAST_SYNC: 'lastStatsSync',
+    LAST_UPDATE: 'statsLastUpdate',
+    SESSIONS: 'cachedSessions',
+    BOOKS: 'cachedBooks',
 };
 
 const SYNC_INTERVAL = 5 * 60 * 1000;
@@ -242,6 +245,59 @@ export const recoverActiveSession = async (userId) => {
 // BACKWARD COMPATIBILITY - OLD API
 // ═══════════════════════════════════════════════════════════
 
+// Synchronous localStorage-only methods for components that don't need async
+export const getActiveSessionSync = () => {
+    const cached = localStorage.getItem(CACHE_KEYS.ACTIVE_SESSION);
+    return cached ? JSON.parse(cached) : null;
+};
+
+export const saveActiveSessionSync = (sessionData) => {
+    localStorage.setItem(CACHE_KEYS.ACTIVE_SESSION, JSON.stringify(sessionData));
+    console.log('💾 Active session saved to cache');
+};
+
+export const clearActiveSessionSync = () => {
+    localStorage.removeItem(CACHE_KEYS.ACTIVE_SESSION);
+    console.log('🗑️ Active session cleared from cache');
+};
+
+// Stats caching methods for RealtimeStatsWidget
+export const getStatsSync = () => {
+    const cached = localStorage.getItem(CACHE_KEYS.STATS);
+    return cached ? JSON.parse(cached) : null;
+};
+
+export const saveStatsSync = (stats) => {
+    localStorage.setItem(CACHE_KEYS.STATS, JSON.stringify(stats));
+};
+
+export const getLastUpdateSync = () => {
+    const timestamp = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
+    return timestamp ? parseInt(timestamp) : null;
+};
+
+export const setLastUpdateSync = () => {
+    localStorage.setItem(CACHE_KEYS.LAST_UPDATE, Date.now().toString());
+};
+
+export const saveSessionsSync = (sessions) => {
+    localStorage.setItem(CACHE_KEYS.SESSIONS, JSON.stringify(sessions));
+};
+
+export const getSessionsSync = () => {
+    const cached = localStorage.getItem(CACHE_KEYS.SESSIONS);
+    return cached ? JSON.parse(cached) : [];
+};
+
+export const saveBooksSync = (books) => {
+    localStorage.setItem(CACHE_KEYS.BOOKS, JSON.stringify(books));
+};
+
+export const getBooksSync = () => {
+    const cached = localStorage.getItem(CACHE_KEYS.BOOKS);
+    return cached ? JSON.parse(cached) : [];
+};
+
 export const statsCache = {
     startSession: startReadingSession,
     getActive: getActiveSession,
@@ -253,6 +309,19 @@ export const statsCache = {
     startSync: startAutoSync,
     stopSync: stopAutoSync,
     recover: recoverActiveSession,
+    // Synchronous methods for direct localStorage access
+    getActiveSession: getActiveSessionSync,
+    saveActiveSession: saveActiveSessionSync,
+    clearActiveSession: clearActiveSessionSync,
+    // Stats caching methods
+    getStats: getStatsSync,
+    saveStats: saveStatsSync,
+    getLastUpdate: getLastUpdateSync,
+    setLastUpdate: setLastUpdateSync,
+    saveSessions: saveSessionsSync,
+    getSessions: getSessionsSync,
+    saveBooks: saveBooksSync,
+    getBooks: getBooksSync,
 };
 
 // Also export as default for compatibility
