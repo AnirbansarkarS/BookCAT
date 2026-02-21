@@ -120,7 +120,6 @@ export default function Library() {
             if (maxPages) currentPage = maxPages;
         }
 
-        // Combine user tags with system tag
         const userTags = parseTags(draft.tagsInput);
         const systemTag = draft.systemTag || statusConfig[draft.status]?.systemTag || 'want_to_read';
         const allTags = [systemTag, ...userTags];
@@ -158,23 +157,18 @@ export default function Library() {
         }
     };
 
-    // Handle book opening animation
     const handleOpenBook = (book) => {
         setOpeningBookId(book.id);
-
-        // Show opening animation
         setTimeout(() => {
             setShowIntentModal(true);
             setReadingSessionBook(book);
         }, 800);
     };
 
-    // Handle intent selection and start reading
     const handleStartReading = (intent) => {
         setSelectedIntent(intent);
         setShowIntentModal(false);
         setOpeningBookId(null);
-        // ReadingSessionModal will handle the actual session
     };
 
     const handleSessionProgressSave = async (progressData) => {
@@ -223,9 +217,7 @@ export default function Library() {
         }
     };
 
-    // Handle session completion
     const handleSessionComplete = async (sessionData) => {
-        // Update book progress
         if (readingSessionBook) {
             const safeCurrentPage = Number.isFinite(sessionData.currentPage)
                 ? sessionData.currentPage
@@ -260,7 +252,6 @@ export default function Library() {
             });
         }
 
-        // Emit event to update stats
         console.log('🎉 Session completed - emitting event');
         eventBus.emit(EVENTS.SESSION_COMPLETED, sessionData);
         eventBus.emit(EVENTS.STATS_REFRESH);
@@ -271,34 +262,34 @@ export default function Library() {
 
     const filteredBooks = filter === 'All' ? books : books.filter(b => b.status === filter);
 
-    // Get system tag for a book
     const getSystemTag = (book) => {
         if (!book.tags || !Array.isArray(book.tags)) return null;
         return book.tags.find(tag => Object.keys(SYSTEM_TAGS).includes(tag));
     };
 
-    // Get user tags (non-system tags)
     const getUserTags = (book) => {
         if (!book.tags || !Array.isArray(book.tags)) return [];
         return book.tags.filter(tag => !Object.keys(SYSTEM_TAGS).includes(tag));
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6 md:space-y-8">
+            {/* Header - Mobile optimized */}
+            <div className="flex flex-col gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">My Library</h1>
-                    <p className="text-text-muted">Track your reading journey with time, effort, and context.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">My Library</h1>
+                    <p className="text-sm md:text-base text-text-muted">Track your reading journey</p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="flex gap-2 p-1 bg-surface rounded-xl border border-white/5 w-fit overflow-x-auto scrollbar-hide">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    {/* Filter tabs - horizontal scroll on mobile */}
+                    <div className="flex gap-2 p-1 bg-surface rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
                         {['All', 'Reading', 'Want to Read', 'Completed', 'Re-reading'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setFilter(tab)}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
+                                    "px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
                                     filter === tab
                                         ? "bg-primary text-white shadow-lg shadow-primary/20"
                                         : "text-text-secondary hover:text-white hover:bg-white/5"
@@ -309,390 +300,367 @@ export default function Library() {
                         ))}
                     </div>
 
+                    {/* Add book button */}
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 transition-all text-sm md:text-base"
                     >
-                        <Plus size={20} />
-                        Add Book
+                        <Plus size={18} />
+                        <span className="hidden sm:inline">Add Book</span>
+                        <span className="sm:hidden">Add</span>
                     </button>
                 </div>
             </div>
 
             {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <p className="text-red-400">{error}</p>
+                <div className="p-3 md:p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <p className="text-red-400 text-sm">{error}</p>
                 </div>
             )}
 
             {/* Loading State */}
             {isLoading && (
-                <div className="flex items-center justify-center py-20">
+                <div className="flex items-center justify-center py-12 md:py-20">
                     <div className="text-center space-y-4">
-                        <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
-                        <p className="text-text-muted">Loading your library...</p>
+                        <Loader2 className="w-10 h-10 md:w-12 md:h-12 text-primary animate-spin mx-auto" />
+                        <p className="text-text-muted text-sm md:text-base">Loading your library...</p>
                     </div>
                 </div>
             )}
 
             {/* Empty State */}
             {!isLoading && books.length === 0 && (
-                <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <BookOpen className="w-10 h-10 text-primary" />
+                <div className="text-center py-12 md:py-20 px-4">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+                        <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-primary" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Your library is empty</h3>
-                    <p className="text-text-muted mb-6">Start building your collection by adding your first book</p>
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-2">Your library is empty</h3>
+                    <p className="text-sm md:text-base text-text-muted mb-4 md:mb-6">Start building your collection</p>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 transition-all"
+                        className="inline-flex items-center gap-2 px-5 md:px-6 py-2.5 md:py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 transition-all text-sm md:text-base"
                     >
-                        <Plus size={20} />
+                        <Plus size={18} />
                         Add Your First Book
                     </button>
                 </div>
             )}
 
-            {/* Books Grid */}
+            {/* Bookshelf Grid - Mobile: 2 columns, Tablet: 3, Desktop: 4-5 */}
             {!isLoading && filteredBooks.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                    {filteredBooks.map((book) => {
-                        const StatusIcon = statusConfig[book.status]?.icon || BookOpen;
-                        const draft = drafts[book.id] || buildDraft(book);
-                        const isExpanded = expandedId === book.id;
-                        const isOpening = openingBookId === book.id;
-                        const totalPagesDisplay = book.total_pages || '?';
-                        const computedProgress = book.total_pages
-                            ? Math.min(100, Math.round(((book.current_page || 0) / book.total_pages) * 100))
-                            : (book.progress || 0);
-                        const progressValue = Number.isFinite(computedProgress) ? computedProgress : 0;
-                        const parsedMaxPages = parseInt(draft.total_pages);
-                        const maxPages = Number.isFinite(parsedMaxPages) && parsedMaxPages > 0
-                            ? parsedMaxPages
-                            : (book.total_pages || 100);
-                        const draftCurrent = Number.isFinite(parseInt(draft.current_page))
-                            ? parseInt(draft.current_page)
-                            : (book.current_page || 0);
+                <div className="relative">
+                    {/* Bookshelf background effect */}
+                    <div className="bookshelf-container">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
+                            {filteredBooks.map((book, index) => {
+                                const StatusIcon = statusConfig[book.status]?.icon || BookOpen;
+                                const draft = drafts[book.id] || buildDraft(book);
+                                const isExpanded = expandedId === book.id;
+                                const isOpening = openingBookId === book.id;
+                                const totalPagesDisplay = book.total_pages || '?';
+                                const computedProgress = book.total_pages
+                                    ? Math.min(100, Math.round(((book.current_page || 0) / book.total_pages) * 100))
+                                    : (book.progress || 0);
+                                const progressValue = Number.isFinite(computedProgress) ? computedProgress : 0;
+                                const parsedMaxPages = parseInt(draft.total_pages);
+                                const maxPages = Number.isFinite(parsedMaxPages) && parsedMaxPages > 0
+                                    ? parsedMaxPages
+                                    : (book.total_pages || 100);
+                                const draftCurrent = Number.isFinite(parseInt(draft.current_page))
+                                    ? parseInt(draft.current_page)
+                                    : (book.current_page || 0);
 
-                        const systemTag = getSystemTag(book);
-                        const userTags = getUserTags(book);
+                                const systemTag = getSystemTag(book);
+                                const userTags = getUserTags(book);
 
-                        return (
-                            <div
-                                key={book.id}
-                                className={cn(
-                                    "group relative bg-surface rounded-2xl overflow-hidden border border-white/5 transition-all duration-200",
-                                    "hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2",
-                                    "hover:border-primary/50",
-                                    isOpening
-                                        ? "scale-105 shadow-2xl shadow-primary/30 z-50"
-                                        : ""
-                                )}
-                                style={{
-                                    transformStyle: 'preserve-3d',
-                                    transition: 'all 0.2s ease-out'
-                                }}
-                                onMouseMove={(e) => {
-                                    if (isOpening) return;
-                                    const card = e.currentTarget;
-                                    const rect = card.getBoundingClientRect();
-                                    const x = e.clientX - rect.left;
-                                    const y = e.clientY - rect.top;
-                                    const centerX = rect.width / 2;
-                                    const centerY = rect.height / 2;
-                                    const rotateX = (y - centerY) / 20;
-                                    const rotateY = (centerX - x) / 20;
-
-                                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px)`;
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (isOpening) return;
-                                    e.currentTarget.style.transform = '';
-                                }}
-                            >
-                                <div className="aspect-[2/3] overflow-hidden relative">
-                                    {book.cover_url ? (
-                                        <img
-                                            src={book.cover_url}
-                                            alt={book.title}
-                                            className={cn(
-                                                "w-full h-full object-cover transition-all duration-500",
-                                                isOpening ? "scale-110 blur-sm" : "group-hover:scale-105"
-                                            )}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                                            <BookOpen className="w-12 h-12 text-text-muted" />
-                                        </div>
-                                    )}
-
-                                    {/* Progress bar under cover */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                                        <div
-                                            className={cn(
-                                                "h-full transition-all duration-500",
-                                                progressValue > 0 ? "bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.6)]" : "bg-white/20"
-                                            )}
-                                            style={{ width: `${progressValue}%` }}
-                                        />
-                                    </div>
-
-                                    {/* Opening animation overlay */}
-                                    {isOpening && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center animate-fade-in">
-                                            <div className="text-center space-y-2 animate-pulse">
-                                                <BookOpen className="w-12 h-12 text-primary mx-auto" />
-                                                <p className="text-white font-medium">Opening...</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                                        <button
-                                            onClick={() => handleOpenBook(book)}
-                                            className="w-full py-2 bg-primary text-white font-semibold rounded-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-primary/90 text-center flex items-center justify-center gap-2"
-                                        >
-                                            <Timer size={16} />
-                                            Start Reading
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 space-y-3">
-                                    {/* System Tag Badge */}
-                                    {systemTag && SYSTEM_TAGS[systemTag] && (
-                                        <div className={cn(
-                                            "flex items-center gap-1.5 w-fit px-2 py-0.5 rounded-full text-xs font-medium",
-                                            SYSTEM_TAGS[systemTag].color
-                                        )}>
-                                            {React.createElement(SYSTEM_TAGS[systemTag].icon, { size: 10 })}
-                                            {SYSTEM_TAGS[systemTag].label}
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-white leading-tight truncate" title={book.title}>{book.title}</h3>
-                                            <p className="text-sm text-text-muted truncate">{book.authors || 'Unknown Author'}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                ensureDraft(book);
-                                                setExpandedId(isExpanded ? null : book.id);
-                                            }}
-                                            className={cn(
-                                                "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0",
-                                                isExpanded
-                                                    ? "bg-primary/20 text-primary"
-                                                    : "bg-white/5 text-text-secondary hover:text-white hover:bg-white/10"
-                                            )}
-                                            title="Edit Options"
-                                        >
-                                            <SlidersHorizontal size={12} />
-                                            Edit
-                                        </button>
-                                    </div>
-
-                                    {/* User Tags */}
-                                    <div className="flex items-center gap-2 text-xs text-text-muted">
-                                        <Tag size={12} />
-                                        {userTags.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {userTags.slice(0, 3).map(tag => (
-                                                    <span key={tag} className="px-2 py-0.5 bg-white/5 rounded-full text-[10px] text-text-secondary">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                                {userTags.length > 3 && (
-                                                    <span className="text-[10px] text-text-muted">+{userTags.length - 3}</span>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-text-muted">No tags yet</span>
+                                return (
+                                    <div
+                                        key={book.id}
+                                        className={cn(
+                                            "book-spine group relative bg-surface rounded-lg md:rounded-2xl overflow-hidden border border-white/5 transition-all duration-200",
+                                            "hover:shadow-xl md:hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-1 md:hover:-translate-y-2",
+                                            "hover:border-primary/50",
+                                            isOpening ? "scale-105 shadow-2xl shadow-primary/30 z-50" : ""
                                         )}
-                                    </div>
-
-                                    {/* Progress Stats */}
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-xs text-text-muted">
-                                            <span>{book.current_page || 0} / {totalPagesDisplay} pages</span>
-                                            <span className="font-semibold">{progressValue}%</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            <div
-                                                className={cn(
-                                                    "h-full transition-all duration-700 ease-out",
-                                                    progressValue === 100
-                                                        ? "bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse-glow"
-                                                        : "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.4)]"
-                                                )}
-                                                style={{ width: `${progressValue}%` }}
-                                            />
-                                        </div>
-                                        {progressValue === 100 && (
-                                            <div className="text-xs text-emerald-400 font-semibold animate-fade-in flex items-center gap-1">
-                                                <CheckCircle size={12} />
-                                                Completed!
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleOpenBook(book)}
-                                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold transition-colors"
-                                        >
-                                            <Timer size={14} />
-                                            Start Timer
-                                        </button>
-                                    </div>
-
-                                    {/* Expanded Edit Section */}
-                                    {isExpanded && (
-                                        <div className="mt-2 border-t border-white/10 pt-3 space-y-3">
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-medium text-text-secondary">Status</label>
-                                                    <select
-                                                        value={draft.status}
-                                                        onChange={(e) => {
-                                                            const newStatus = e.target.value;
-                                                            const newSystemTag = statusConfig[newStatus]?.systemTag;
-                                                            updateDraft(book.id, {
-                                                                status: newStatus,
-                                                                systemTag: newSystemTag
-                                                            });
-                                                        }}
-                                                        className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary/50"
-                                                    >
-                                                        {['Reading', 'Want to Read', 'Completed', 'Re-reading', 'Abandoned'].map(status => (
-                                                            <option key={status} value={status} className="bg-background text-white">
-                                                                {status}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-medium text-text-secondary">Total Pages</label>
-                                                    <input
-                                                        type="number"
-                                                        value={draft.total_pages}
-                                                        onChange={(e) => updateDraft(book.id, { total_pages: e.target.value })}
-                                                        placeholder="e.g. 320"
-                                                        className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary/50"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-medium text-text-secondary">Pages Read</label>
-                                                <input
-                                                    type="range"
-                                                    min="0"
-                                                    max={maxPages}
-                                                    value={draftCurrent}
-                                                    onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
-                                                    className="w-full accent-primary"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        value={draft.current_page}
-                                                        onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
-                                                        className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-center focus:outline-none focus:border-primary/50"
-                                                    />
-                                                    <span className="text-xs text-text-muted">/ {maxPages} pages</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-medium text-text-secondary">Intent Tags (Context)</label>
-                                                <input
-                                                    type="text"
-                                                    value={draft.tagsInput}
-                                                    onChange={(e) => updateDraft(book.id, { tagsInput: e.target.value })}
-                                                    placeholder="exam, self-growth, slow-read"
-                                                    className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary/50"
-                                                />
-                                                <p className="text-[10px] text-text-muted">Add context tags (not genres). Separate with commas.</p>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleSaveDetails(book)}
-                                                    disabled={savingId === book.id}
+                                        style={{
+                                            transformStyle: 'preserve-3d',
+                                            transition: 'all 0.2s ease-out',
+                                            animationDelay: `${index * 50}ms`
+                                        }}
+                                    >
+                                        {/* Book Cover */}
+                                        <div className="aspect-[2/3] overflow-hidden relative">
+                                            {book.cover_url ? (
+                                                <img
+                                                    src={book.cover_url}
+                                                    alt={book.title}
                                                     className={cn(
-                                                        "flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all",
-                                                        savingId === book.id
-                                                            ? "bg-white/5 text-text-muted cursor-not-allowed"
-                                                            : "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
+                                                        "w-full h-full object-cover transition-all duration-500",
+                                                        isOpening ? "scale-110 blur-sm" : "group-hover:scale-105"
                                                     )}
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
+                                                    <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-text-muted" />
+                                                </div>
+                                            )}
+
+                                            {/* Progress bar */}
+                                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                                                <div
+                                                    className={cn(
+                                                        "h-full transition-all duration-500",
+                                                        progressValue > 0 ? "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.6)]" : "bg-white/20"
+                                                    )}
+                                                    style={{ width: `${progressValue}%` }}
+                                                />
+                                            </div>
+
+                                            {/* Opening animation */}
+                                            {isOpening && (
+                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center animate-fade-in">
+                                                    <div className="text-center space-y-2 animate-pulse">
+                                                        <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-primary mx-auto" />
+                                                        <p className="text-white font-medium text-xs md:text-sm">Opening...</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Hover overlay - hidden on mobile */}
+                                            <div className="hidden md:flex absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-col justify-end p-3 lg:p-4">
+                                                <button
+                                                    onClick={() => handleOpenBook(book)}
+                                                    className="w-full py-2 bg-primary text-white font-semibold rounded-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-primary/90 text-xs lg:text-sm flex items-center justify-center gap-2"
                                                 >
-                                                    <Save size={14} />
-                                                    Save Changes
+                                                    <Timer size={14} />
+                                                    Start Reading
                                                 </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Book Info */}
+                                        <div className="p-2 md:p-3 lg:p-4 space-y-2 md:space-y-3">
+                                            {/* System Tag - smaller on mobile */}
+                                            {systemTag && SYSTEM_TAGS[systemTag] && (
+                                                <div className={cn(
+                                                    "flex items-center gap-1 w-fit px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium",
+                                                    SYSTEM_TAGS[systemTag].color
+                                                )}>
+                                                    {React.createElement(SYSTEM_TAGS[systemTag].icon, { size: 8, className: "md:w-2.5 md:h-2.5" })}
+                                                    <span className="hidden sm:inline">{SYSTEM_TAGS[systemTag].label}</span>
+                                                </div>
+                                            )}
+
+                                            {/* Title & Author */}
+                                            <div className="flex items-start justify-between gap-1 md:gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-white leading-tight truncate text-xs md:text-sm" title={book.title}>
+                                                        {book.title}
+                                                    </h3>
+                                                    <p className="text-[10px] md:text-xs text-text-muted truncate">{book.authors || 'Unknown'}</p>
+                                                </div>
                                                 <button
                                                     onClick={() => {
-                                                        setDrafts(prev => ({ ...prev, [book.id]: buildDraft(book) }));
-                                                        setExpandedId(null);
+                                                        ensureDraft(book);
+                                                        setExpandedId(isExpanded ? null : book.id);
                                                     }}
-                                                    className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-medium transition-colors"
+                                                    className={cn(
+                                                        "flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-1 rounded-lg text-[10px] md:text-xs font-medium transition-all flex-shrink-0",
+                                                        isExpanded ? "bg-primary/20 text-primary" : "bg-white/5 text-text-secondary hover:text-white hover:bg-white/10"
+                                                    )}
                                                 >
-                                                    Cancel
+                                                    <SlidersHorizontal size={10} className="md:w-3 md:h-3" />
+                                                    <span className="hidden sm:inline">Edit</span>
                                                 </button>
                                             </div>
+
+                                            {/* Tags - compact on mobile */}
+                                            <div className="flex items-center gap-1 text-[10px] md:text-xs text-text-muted">
+                                                <Tag size={10} className="md:w-3 md:h-3 flex-shrink-0" />
+                                                {userTags.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {userTags.slice(0, 2).map(tag => (
+                                                            <span key={tag} className="px-1.5 py-0.5 bg-white/5 rounded-full text-[9px] md:text-[10px] text-text-secondary truncate max-w-[60px]">
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                        {userTags.length > 2 && (
+                                                            <span className="text-[9px] md:text-[10px] text-text-muted">+{userTags.length - 2}</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-text-muted text-[9px] md:text-[10px]">No tags</span>
+                                                )}
+                                            </div>
+
+                                            {/* Progress */}
+                                            <div className="space-y-1 md:space-y-2">
+                                                <div className="flex justify-between text-[10px] md:text-xs text-text-muted">
+                                                    <span>{book.current_page || 0}/{totalPagesDisplay}</span>
+                                                    <span className="font-semibold">{progressValue}%</span>
+                                                </div>
+                                                <div className="w-full h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={cn(
+                                                            "h-full transition-all duration-700 ease-out",
+                                                            progressValue === 100 ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-primary"
+                                                        )}
+                                                        style={{ width: `${progressValue}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Action button - mobile */}
+                                            <button
+                                                onClick={() => handleOpenBook(book)}
+                                                className="w-full md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold transition-colors"
+                                            >
+                                                <Timer size={12} />
+                                                Start
+                                            </button>
+
+                                            {/* Expanded Edit Section */}
+                                            {isExpanded && (
+                                                <div className="mt-2 border-t border-white/10 pt-2 md:pt-3 space-y-2 md:space-y-3">
+                                                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] md:text-xs font-medium text-text-secondary">Status</label>
+                                                            <select
+                                                                value={draft.status}
+                                                                onChange={(e) => {
+                                                                    const newStatus = e.target.value;
+                                                                    const newSystemTag = statusConfig[newStatus]?.systemTag;
+                                                                    updateDraft(book.id, {
+                                                                        status: newStatus,
+                                                                        systemTag: newSystemTag
+                                                                    });
+                                                                }}
+                                                                className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                            >
+                                                                {['Reading', 'Want to Read', 'Completed', 'Re-reading', 'Abandoned'].map(status => (
+                                                                    <option key={status} value={status} className="bg-background text-white">
+                                                                        {status}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] md:text-xs font-medium text-text-secondary">Total Pages</label>
+                                                            <input
+                                                                type="number"
+                                                                value={draft.total_pages}
+                                                                onChange={(e) => updateDraft(book.id, { total_pages: e.target.value })}
+                                                                placeholder="320"
+                                                                className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-1 md:space-y-2">
+                                                        <label className="text-[10px] md:text-xs font-medium text-text-secondary">Pages Read</label>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max={maxPages}
+                                                            value={draftCurrent}
+                                                            onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
+                                                            className="w-full accent-primary"
+                                                        />
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="number"
+                                                                value={draft.current_page}
+                                                                onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
+                                                                className="w-12 md:w-16 px-1 md:px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] md:text-xs text-center focus:outline-none focus:border-primary/50"
+                                                            />
+                                                            <span className="text-[10px] md:text-xs text-text-muted">/ {maxPages}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] md:text-xs font-medium text-text-secondary">Tags</label>
+                                                        <input
+                                                            type="text"
+                                                            value={draft.tagsInput}
+                                                            onChange={(e) => updateDraft(book.id, { tagsInput: e.target.value })}
+                                                            placeholder="exam, study..."
+                                                            className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleSaveDetails(book)}
+                                                            disabled={savingId === book.id}
+                                                            className={cn(
+                                                                "flex-1 inline-flex items-center justify-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-semibold transition-all",
+                                                                savingId === book.id
+                                                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                                                    : "bg-primary text-white hover:bg-primary/90"
+                                                            )}
+                                                        >
+                                                            <Save size={12} />
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setDrafts(prev => ({ ...prev, [book.id]: buildDraft(book) }));
+                                                                setExpandedId(null);
+                                                            }}
+                                                            className="px-2 md:px-3 py-1.5 md:py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] md:text-xs font-medium transition-colors"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* No results for filter */}
+            {/* No results */}
             {!isLoading && books.length > 0 && filteredBooks.length === 0 && (
                 <div className="text-center py-12">
-                    <p className="text-text-muted">No books found with status "{filter}"</p>
+                    <p className="text-text-muted text-sm">No books with status "{filter}"</p>
                 </div>
             )}
 
-            {/* Add Book Modal */}
+            {/* Modals */}
             <AddBookModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onBookAdded={handleBookAdded}
             />
 
-            {/* Reading Intent Modal */}
             {showIntentModal && readingSessionBook && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-surface border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-scale-in">
-                        <div className="text-center mb-6">
-                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Brain className="w-8 h-8 text-primary" />
+                    <div className="bg-surface border border-white/10 rounded-2xl p-4 md:p-6 max-w-md w-full shadow-2xl animate-scale-in">
+                        <div className="text-center mb-4 md:mb-6">
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                                <Brain className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Why are you reading today?</h3>
-                            <p className="text-sm text-text-muted">This helps track contextual reading patterns</p>
+                            <h3 className="text-lg md:text-xl font-bold text-white mb-2">Why are you reading?</h3>
+                            <p className="text-xs md:text-sm text-text-muted">Track contextual patterns</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="grid grid-cols-2 gap-2 md:gap-3 mb-4 md:mb-6">
                             {READING_INTENTS.map((intent) => (
                                 <button
                                     key={intent.id}
                                     onClick={() => handleStartReading(intent.id)}
-                                    className={cn(
-                                        "p-4 rounded-xl border-2 transition-all hover:scale-105",
-                                        "bg-white/5 border-white/10 hover:border-primary/50 hover:bg-white/10"
-                                    )}
+                                    className="p-3 md:p-4 rounded-xl border-2 transition-all hover:scale-105 bg-white/5 border-white/10 hover:border-primary/50 hover:bg-white/10"
                                 >
-                                    <div className="flex flex-col items-center gap-2">
+                                    <div className="flex flex-col items-center gap-1.5 md:gap-2">
                                         {React.createElement(intent.icon, {
-                                            size: 24,
-                                            className: intent.color
+                                            size: 20,
+                                            className: cn(intent.color, "md:w-6 md:h-6")
                                         })}
-                                        <span className="text-sm font-medium text-white">{intent.label}</span>
+                                        <span className="text-xs md:text-sm font-medium text-white">{intent.label}</span>
                                     </div>
                                 </button>
                             ))}
@@ -712,7 +680,6 @@ export default function Library() {
                 </div>
             )}
 
-            {/* Reading Session Modal */}
             {readingSessionBook && selectedIntent && (
                 <ReadingSessionModal
                     book={readingSessionBook}
@@ -733,48 +700,45 @@ export default function Library() {
                     to { opacity: 1; }
                 }
                 @keyframes scale-in {
+                    from { opacity: 0; transform: scale(0.9); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                @keyframes slide-up {
                     from { 
                         opacity: 0;
-                        transform: scale(0.9);
+                        transform: translateY(20px);
                     }
                     to { 
                         opacity: 1;
-                        transform: scale(1);
+                        transform: translateY(0);
                     }
                 }
-                @keyframes pulse-glow {
-                    0%, 100% { 
-                        box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
-                    }
-                    50% { 
-                        box-shadow: 0 0 20px rgba(16, 185, 129, 1);
-                    }
+                .animate-fade-in { animation: fade-in 0.3s ease-out; }
+                .animate-scale-in { animation: scale-in 0.3s ease-out; }
+                .book-spine {
+                    animation: slide-up 0.4s ease-out both;
                 }
-                @keyframes book-open {
-                    0% {
-                        transform: scale(1);
-                        border-radius: 1rem;
-                    }
-                    50% {
-                        transform: scale(1.1) translateZ(50px);
-                        border-radius: 0.5rem;
-                    }
-                    100% {
-                        transform: scale(1.2) scaleX(1.5);
-                        border-radius: 0;
+                .bookshelf-container::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.2), transparent);
+                    display: none;
+                }
+                @media (min-width: 768px) {
+                    .bookshelf-container::before {
+                        display: block;
                     }
                 }
-                .animate-fade-in {
-                    animation: fade-in 0.3s ease-out;
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
                 }
-                .animate-scale-in {
-                    animation: scale-in 0.3s ease-out;
-                }
-                .animate-pulse-glow {
-                    animation: pulse-glow 2s ease-in-out infinite;
-                }
-                .animate-book-open {
-                    animation: book-open 0.8s ease-out forwards;
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
                 }
             `}} />
         </div>
