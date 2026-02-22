@@ -7,6 +7,7 @@ import { getUserBooks, updateBookDetails, logReadingSession } from '../services/
 import AddBookModal from '../components/AddBookModal';
 import ReadingSessionModal from '../components/ReadingSessionModal';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { logBookCompletion } from '../services/activityService';
 
 // System tags for book states
 const SYSTEM_TAGS = {
@@ -144,6 +145,11 @@ export default function Library() {
                 if (sessionError) {
                     console.error('Failed to log session from manual page update:', sessionError);
                 }
+            }
+
+            // Log activity when book is marked as completed
+            if (draft.status === 'Completed' && book.status !== 'Completed') {
+                await logBookCompletion(user.id, book.id, book.title);
             }
 
             setBooks(prev => prev.map(b => b.id === book.id ? { ...b, ...updates } : b));

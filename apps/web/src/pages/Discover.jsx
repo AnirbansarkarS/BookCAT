@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
+import ActivityFeed from '../components/AcitvityFeed';
+import { getTrendingBooks } from '../services/activityService';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
@@ -123,11 +125,21 @@ export default function Discover() {
     const { user } = useAuth();
     const [funFact, setFunFact] = useState(FUN_FACTS[0]);
     const [refreshing, setRefreshing] = useState(false);
+    const [trendingBooks, setTrendingBooks] = useState([]);
+    const [loadingTrending, setLoadingTrending] = useState(true);
 
     useEffect(() => {
         // Rotate fun fact daily
         const factIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % FUN_FACTS.length;
         setFunFact(FUN_FACTS[factIndex]);
+
+        // Load trending books based on activity
+        (async () => {
+            setLoadingTrending(true);
+            const { data } = await getTrendingBooks(10);
+            setTrendingBooks(data || []);
+            setLoadingTrending(false);
+        })();
     }, []);
 
     const refreshFunFact = () => {
@@ -220,6 +232,64 @@ export default function Discover() {
                             </div>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+                {/* Trending Books from Activity */}
+                <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <Flame className="w-5 h-5 text-orange-400" />
+                        <h2 className="text-xl font-bold text-white">Hot This Week</h2>
+                    </div>
+                    <div className="bg-surface border border-white/5 rounded-2xl p-4 space-y-3">
+                        {loadingTrending ? (
+                            <div className="flex items-center justify-center py-8">
+                                <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+                            </div>
+                        ) : trendingBooks.length > 0 ? (
+                            trendingBooks.slice(0, 5).map((book, index) => (
+                                <div key={book.book_id || index} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                        {index + 1}
+                                    </div>
+                                    {book.cover_url && (
+                                        <img src={book.cover_url} alt={book.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
+                                        <p className="text-xs text-text-muted">{book.authors}</p>
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-orange-400">
+                                            <TrendingUp size={10} />
+                                            <span>{book.activity_count || book.reader_count || 0} readers this week</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            TRENDING_BOOKS.slice(0, 5).map((book, index) => (
+                                <div key={book.id} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                        {index + 1}
+                                    </div>
+                                    <img src={book.cover} alt={book.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
+                                        <p className="text-xs text-text-muted">{book.author}</p>
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-orange-400">
+                                            <TrendingUp size={10} />
+                                            <span>{book.trend} this week</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Activity Feed */}
+                <div>
+                    <ActivityFeed />
                 </div>
             </div>
 

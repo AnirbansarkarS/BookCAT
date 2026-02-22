@@ -5,6 +5,7 @@ import BookPreviewCard from './BookPreviewCard';
 import { fetchBookByISBN, checkDuplicateISBN, addBook } from '../services/bookService';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
+import { logBookStart } from '../services/activityService';
 
 export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
     const { user } = useAuth();
@@ -88,12 +89,17 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         setError(null);
 
         try {
-            await addBook(user.id, {
+            const savedBook = await addBook(user.id, {
                 ...finalBookData,
                 source: mode === 'scan' ? 'scan' : 'manual',
                 status: 'Want to Read',
                 progress: 0,
             });
+
+            // Log activity if book is started with 'Reading' status
+            if (finalBookData.status === 'Reading' && savedBook?.id) {
+                await logBookStart(user.id, savedBook.id, finalBookData.title);
+            }
 
             // Reset and close
             if (onBookAdded) onBookAdded();
