@@ -14,6 +14,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Profile from './pages/Profile'
 import Stats from './pages/Stats'
+import Quiz from './pages/Quiz'
 import SplashScreen from './components/SplashScreen'
 
 function App() {
@@ -66,6 +67,7 @@ function App() {
                     <Route path="community" element={<Community />} />
                     <Route path="exchange" element={<Exchange />} />
                     <Route path="profile" element={<Profile />} />
+                    <Route path="quiz" element={<Quiz />} />
                     <Route path="read/:bookId" element={<ReadingMode />} />
                     <Route
                       path="*"

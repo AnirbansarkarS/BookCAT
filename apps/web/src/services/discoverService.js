@@ -87,6 +87,194 @@ export const getNewReleases = async () => {
     }
 };
 
+/** * Get today's quiz question.
+ * Returns null if no quiz has been generated yet for today.
+ */
+export const getDailyQuiz = async () => {
+    try {
+        const todayUTC = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+            .from('daily_quiz')
+            .select('*')
+            .eq('quiz_date', todayUTC)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data || null;
+    } catch (error) {
+        console.error('Error fetching daily quiz:', error);
+        return null;
+    }
+};
+
+/**
+ * Get quiz history (past N quizzes, newest first).
+ */
+export const getQuizHistory = async (limit = 30) => {
+    try {
+        const { data, error } = await supabase
+            .from('daily_quiz')
+            .select('*')
+            .order('quiz_date', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching quiz history:', error);
+        return [];
+    }
+};
+
+/**
+ * Submit a user's answer for a quiz.
+ * Returns { is_correct, explanation, correct_answer }.
+ */
+export const submitQuizAnswer = async (userId, quizId, selectedAnswer, correctAnswer) => {
+    try {
+        const is_correct = selectedAnswer === correctAnswer;
+
+        const { error } = await supabase
+            .from('user_quiz_answers')
+            .upsert({
+                user_id: userId,
+                quiz_id: quizId,
+                selected_answer: selectedAnswer,
+                is_correct,
+            }, { onConflict: 'user_id,quiz_id' });
+
+        if (error) throw error;
+        return { is_correct, error: null };
+    } catch (error) {
+        console.error('Error submitting quiz answer:', error);
+        return { is_correct: false, error };
+    }
+};
+
+/**
+ * Get the current user's answer for a specific quiz (if already answered).
+ */
+export const getUserQuizAnswer = async (userId, quizId) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_quiz_answers')
+            .select('selected_answer, is_correct, answered_at')
+            .eq('user_id', userId)
+            .eq('quiz_id', quizId)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data || null;
+    } catch (error) {
+        console.error('Error fetching user quiz answer:', error);
+        return null;
+    }
+};
+
+/**
+ * Get quiz streak for a user (consecutive days answered correctly).
+ */
+export const getUserQuizStreak = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_quiz_answers')
+            .select('is_correct, answered_at, daily_quiz(quiz_date)')
+            .eq('user_id', userId)
+            .order('answered_at', { ascending: false })
+            .limit(60);
+
+        if (error) throw error;
+
+        let streak = 0;
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        for (let i = 0; i < (data || []).length; i++) {
+            const row = data[i];
+            const quizDate = new Date(row.daily_quiz?.quiz_date);
+            quizDate.setUTCHours(0, 0, 0, 0);
+
+            const expectedDate = new Date(today);
+            expectedDate.setUTCDate(today.getUTCDate() - i);
+
+            if (quizDate.getTime() !== expectedDate.getTime()) break;
+            if (!row.is_correct) break;
+            streak++;
+        }
+
+        return streak;
+    } catch (error) {
+        console.error('Error fetching quiz streak:', error);
+        return 0;
+    }
+};
+
+/**
+ * Manually trigger AI quiz generation (for testing / admin use).
+ */
+export const triggerQuizGeneration = async () => {
+    try {
+        const { data, error } = await supabase.functions.invoke('generate-daily-quiz');
+        if (error) {
+            // Extract the actual response body for debugging
+            if (error.context && typeof error.context.json === 'function') {
+                try {
+                    const body = await error.context.json();
+                    console.error('Edge Function error body:', body);
+                } catch (_) { /* ignore parse error */ }
+            }
+            throw error;
+        }
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error triggering quiz generation:', error);
+        return { success: false, error };
+    }
+};
+
+/** * Fetch publisher updates from the publisher_updates table.
+ * Populated by the fetch-publisher-feeds Edge Function (runs every 6h).
+ *
+ * @param {number} limit - max results to return (default 20)
+ * @param {string|null} publisherSlug - optional filter by single publisher slug
+ */
+export const getPublisherUpdates = async (limit = 20, publisherSlug = null) => {
+    try {
+        let query = supabase
+            .from('publisher_updates')
+            .select('id, publisher, publisher_slug, title, summary, link, image_url, published_at')
+            .order('published_at', { ascending: false })
+            .limit(limit);
+
+        if (publisherSlug) {
+            query = query.eq('publisher_slug', publisherSlug);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching publisher updates:', error);
+        return [];
+    }
+};
+
+/**
+ * Trigger a manual refresh of publisher feeds.
+ * Calls the Edge Function directly (useful for a "Refresh" button).
+ */
+export const triggerPublisherFeedRefresh = async () => {
+    try {
+        const { supabase: sb } = await import('../lib/supabase');
+        const { data, error } = await sb.functions.invoke('fetch-publisher-feeds');
+        if (error) throw error;
+        return { success: true, stats: data?.stats };
+    } catch (error) {
+        console.error('Error triggering feed refresh:', error);
+        return { success: false, error };
+    }
+};
+
 /**
  * Fetch Penguin Random House Instagram posts
  * Note: Instagram API requires authentication

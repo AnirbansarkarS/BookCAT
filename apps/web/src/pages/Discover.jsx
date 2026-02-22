@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-    TrendingUp, Users, BookOpen, Sparkles, Instagram, Lightbulb,
-    Flame, BarChart3, Clock, Star, Heart, MessageCircle, ExternalLink,
-    RefreshCw, ChevronRight, Zap, Award, Coffee, Globe
+    TrendingUp, Users, BookOpen, Sparkles, Lightbulb,
+    Flame, BarChart3, Clock, Star, ExternalLink, Newspaper,
+    RefreshCw, ChevronRight, Zap, Award, Coffee, Globe, Building2,
+    Brain, CheckCircle, XCircle
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
 import ActivityFeed from '../components/AcitvityFeed';
 import { getTrendingBooks } from '../services/activityService';
+import { getPublisherUpdates, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
@@ -69,30 +72,6 @@ const NEW_RELEASES = [
     { id: 3, title: 'The Heaven & Earth Grocery Store', author: 'James McBride', cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1670520732i/65213659.jpg', releaseDate: '2024-02-08' },
 ];
 
-const PENGUIN_POSTS = [
-    {
-        id: 1,
-        image: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400&h=400&fit=crop',
-        caption: '📚 New arrivals that will transport you to another world',
-        likes: 12453,
-        comments: 234
-    },
-    {
-        id: 2,
-        image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=400&fit=crop',
-        caption: 'Weekend reading goals 💫',
-        likes: 8921,
-        comments: 156
-    },
-    {
-        id: 3,
-        image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=400&fit=crop',
-        caption: 'Vintage vibes for your TBR pile 📖',
-        likes: 15678,
-        comments: 289
-    },
-];
-
 const FUN_FACTS = [
     "The smell of old books is caused by the breakdown of chemical compounds in the paper.",
     "The longest novel ever written is 'Artamène ou le Grand Cyrus' at 13,095 pages.",
@@ -121,12 +100,46 @@ const GENRE_TRENDS = [
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
 
+// Quiz type meta (same as Quiz.jsx, kept local so no import needed)
+const QUIZ_TYPE_META = {
+    quote:  { label: 'Guess the Book',  color: 'from-violet-500 to-purple-600' },
+    author: { label: 'Who Wrote This?', color: 'from-blue-500 to-indigo-600'  },
+    genre:  { label: 'What Genre?',     color: 'from-emerald-500 to-teal-600'  },
+    era:    { label: 'Which Era?',      color: 'from-amber-500 to-orange-600'  },
+    plot:   { label: 'Match the Plot',  color: 'from-pink-500 to-rose-600'     },
+    trivia: { label: 'Literary Trivia', color: 'from-cyan-500 to-sky-600'      },
+};
+
+// Publisher brand colours for variety
+const PUBLISHER_COLORS = {
+    penguin:         'from-orange-500 to-red-600',
+    harpercollins:   'from-blue-500 to-indigo-600',
+    hachette:        'from-emerald-500 to-teal-600',
+    simonschuster:   'from-violet-500 to-purple-600',
+    macmillan:       'from-cyan-500 to-blue-600',
+    tor:             'from-amber-500 to-orange-600',
+    bookpage:        'from-pink-500 to-rose-600',
+    publishersweekly:'from-slate-500 to-gray-600',
+};
+
 export default function Discover() {
     const { user } = useAuth();
     const [funFact, setFunFact] = useState(FUN_FACTS[0]);
     const [refreshing, setRefreshing] = useState(false);
     const [trendingBooks, setTrendingBooks] = useState([]);
     const [loadingTrending, setLoadingTrending] = useState(true);
+    const [publisherUpdates, setPublisherUpdates] = useState([]);
+    const [loadingPublisher, setLoadingPublisher] = useState(true);
+    const [activePublisher, setActivePublisher] = useState('all');
+
+    // Quiz state
+    const [dailyQuiz, setDailyQuiz]             = useState(null);
+    const [loadingQuiz, setLoadingQuiz]         = useState(true);
+    const [quizSelected, setQuizSelected]       = useState(null);
+    const [quizRevealed, setQuizRevealed]       = useState(false);
+    const [quizSubmitting, setQuizSubmitting]   = useState(false);
+    const [generatingQuiz, setGeneratingQuiz]   = useState(false);
+    const [quizGenError, setQuizGenError]       = useState(null);
 
     useEffect(() => {
         // Rotate fun fact daily
@@ -140,7 +153,72 @@ export default function Discover() {
             setTrendingBooks(data || []);
             setLoadingTrending(false);
         })();
-    }, []);
+
+        // Load publisher updates
+        (async () => {
+            setLoadingPublisher(true);
+            const data = await getPublisherUpdates(24);
+            setPublisherUpdates(data);
+            setLoadingPublisher(false);
+        })();
+
+        // Load today's quiz
+        (async () => {
+            setLoadingQuiz(true);
+            const quiz = await getDailyQuiz();
+            setDailyQuiz(quiz);
+            setLoadingQuiz(false);
+
+            // Check if user already answered today
+            if (quiz && user) {
+                const existing = await getUserQuizAnswer(user.id, quiz.id);
+                if (existing) {
+                    setQuizSelected(existing.selected_answer);
+                    setQuizRevealed(true);
+                }
+            }
+        })();
+    }, [user]);
+
+    const handleRefreshPublisher = async () => {
+        setRefreshing(true);
+        const data = await getPublisherUpdates(24);
+        setPublisherUpdates(data);
+        setRefreshing(false);
+    };
+
+    const handleGenerateQuiz = async () => {
+        setGeneratingQuiz(true);
+        setQuizGenError(null);
+        const result = await triggerQuizGeneration();
+        if (result.success) {
+            const quiz = await getDailyQuiz();
+            setDailyQuiz(quiz);
+            setQuizSelected(null);
+            setQuizRevealed(false);
+        } else {
+            setQuizGenError('Failed to generate quiz. Make sure the edge function is deployed and GEMINI_API_KEY is set.');
+        }
+        setGeneratingQuiz(false);
+    };
+
+    const handleQuizSelect = async (idx) => {
+        if (quizRevealed || quizSubmitting || !dailyQuiz) return;
+        setQuizSelected(idx);
+        setQuizSubmitting(true);
+        if (user) {
+            await submitQuizAnswer(user.id, dailyQuiz.id, idx, dailyQuiz.correct_answer);
+        }
+        setQuizRevealed(true);
+        setQuizSubmitting(false);
+    };
+
+    const filteredPublisher = activePublisher === 'all'
+        ? publisherUpdates
+        : publisherUpdates.filter(u => u.publisher_slug === activePublisher);
+
+    // Unique publishers in the loaded data
+    const loadedPublishers = [...new Set(publisherUpdates.map(u => u.publisher_slug))];
 
     const refreshFunFact = () => {
         setRefreshing(true);
@@ -349,40 +427,267 @@ export default function Discover() {
                 </div>
             </div>
 
-            {/* Penguin Random House Instagram */}
+            {/* ── Daily Quiz Card ── */}
             <div>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        <Instagram className="w-5 h-5 text-pink-400" />
-                        <h2 className="text-xl font-bold text-white">From Penguin Random House</h2>
+                        <Brain className="w-5 h-5 text-violet-400" />
+                        <h2 className="text-xl font-bold text-white">Daily Quiz</h2>
+                        <span className="text-xs bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full font-medium">AI Generated</span>
                     </div>
-                    <a href="https://www.instagram.com/penguinrandomhouse/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-pink-400 hover:text-pink-300 flex items-center gap-1 transition-colors">
-                        Follow <ExternalLink size={14} />
-                    </a>
+                    <Link
+                        to="/quiz"
+                        className="text-sm text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
+                    >
+                        View all <ChevronRight size={14} />
+                    </Link>
                 </div>
-                <div className="grid sm:grid-cols-3 gap-4">
-                    {PENGUIN_POSTS.map(post => (
-                        <div key={post.id} className="group relative bg-surface border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:border-pink-500/40 transition-all">
-                            <img src={post.image} alt="" className="w-full h-64 object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="absolute bottom-0 left-0 right-0 p-4">
-                                    <p className="text-white text-sm mb-3">{post.caption}</p>
-                                    <div className="flex items-center gap-4 text-xs text-white/80">
-                                        <div className="flex items-center gap-1">
-                                            <Heart size={14} />
-                                            {post.likes.toLocaleString()}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <MessageCircle size={14} />
-                                            {post.comments}
-                                        </div>
-                                    </div>
+
+                {loadingQuiz ? (
+                    <div className="bg-surface border border-white/5 rounded-2xl p-6 animate-pulse space-y-4">
+                        <div className="h-4 bg-white/5 rounded w-1/2" />
+                        <div className="h-5 bg-white/5 rounded w-3/4" />
+                        {[1,2,3,4].map(i => <div key={i} className="h-11 bg-white/5 rounded-xl" />)}
+                    </div>
+                ) : dailyQuiz ? (() => {
+                    const meta = QUIZ_TYPE_META[dailyQuiz.question_type] || QUIZ_TYPE_META.trivia;
+                    const isCorrect = quizSelected === dailyQuiz.correct_answer;
+                    return (
+                        <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
+                            {/* Type banner */}
+                            <div className={cn('bg-gradient-to-r px-5 py-3 flex items-center justify-between', meta.color)}>
+                                <span className="text-white font-semibold text-sm">{meta.label}</span>
+                                <span className="text-white/80 text-xs">
+                                    {new Date().toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                </span>
+                            </div>
+
+                            <div className="p-5">
+                                <p className="text-xs text-text-muted mb-2">
+                                    📖 {dailyQuiz.book_title}{dailyQuiz.book_author ? ` · ${dailyQuiz.book_author}` : ''}
+                                </p>
+                                <p className="text-white font-semibold text-sm leading-snug mb-4">
+                                    {dailyQuiz.question}
+                                </p>
+
+                                <div className="grid sm:grid-cols-2 gap-2">
+                                    {(dailyQuiz.options || []).map((opt, idx) => {
+                                        const isChosen     = quizSelected === idx;
+                                        const isCorrectOpt = idx === dailyQuiz.correct_answer;
+                                        let style = 'bg-white/5 border-white/10 text-text-secondary hover:bg-white/10 hover:border-white/20';
+                                        if (quizRevealed) {
+                                            if (isCorrectOpt)             style = 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300';
+                                            else if (isChosen)            style = 'bg-red-500/20 border-red-500/40 text-red-300';
+                                            else                          style = 'bg-white/[0.02] border-white/5 text-text-muted opacity-60';
+                                        }
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleQuizSelect(idx)}
+                                                disabled={quizRevealed || quizSubmitting}
+                                                className={cn(
+                                                    'flex items-center gap-2 w-full text-left px-3 py-2.5 rounded-xl border transition-all text-xs font-medium',
+                                                    style,
+                                                    !quizRevealed && 'cursor-pointer',
+                                                )}
+                                            >
+                                                <span className="w-5 h-5 rounded-full border border-current flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
+                                                    {String.fromCharCode(65 + idx)}
+                                                </span>
+                                                <span className="line-clamp-1">{opt}</span>
+                                                {quizRevealed && isCorrectOpt && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 ml-auto flex-shrink-0" />}
+                                                {quizRevealed && isChosen && !isCorrectOpt && <XCircle className="w-3.5 h-3.5 text-red-400 ml-auto flex-shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+
+                                {quizRevealed && (
+                                    <div className={cn(
+                                        'mt-4 p-3 rounded-xl border text-xs',
+                                        isCorrect
+                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                                            : 'bg-red-500/10 border-red-500/20 text-red-300',
+                                    )}>
+                                        <p className="font-semibold mb-1">{isCorrect ? '✅ Correct!' : '❌ Nice try!'}</p>
+                                        {dailyQuiz.explanation && (
+                                            <p className="text-white/70 leading-relaxed">{dailyQuiz.explanation}</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!quizRevealed && (
+                                    <p className="mt-3 text-center text-xs text-text-muted">Pick an option above to answer today's quiz</p>
+                                )}
                             </div>
                         </div>
-                    ))}
+                    );
+                })() : (
+                    <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
+                        <Brain className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                        <p className="text-white font-semibold mb-1">No quiz today yet</p>
+                        <p className="text-sm text-text-muted mb-4">A new AI quiz drops every day at midnight UTC.</p>
+                        {quizGenError && (
+                            <p className="text-xs text-red-400 mb-3 max-w-xs mx-auto">{quizGenError}</p>
+                        )}
+                        <button
+                            onClick={handleGenerateQuiz}
+                            disabled={generatingQuiz}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+                        >
+                            <RefreshCw className={cn('w-4 h-4', generatingQuiz && 'animate-spin')} />
+                            {generatingQuiz ? 'Generating…' : 'Generate Today\'s Quiz'}
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Publisher & Industry News */}
+            <div>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Newspaper className="w-5 h-5 text-sky-400" />
+                        <h2 className="text-xl font-bold text-white">Publisher & Industry News</h2>
+                    </div>
+                    <button
+                        onClick={handleRefreshPublisher}
+                        disabled={refreshing || loadingPublisher}
+                        className="flex items-center gap-1 text-sm text-sky-400 hover:text-sky-300 transition-colors disabled:opacity-50"
+                    >
+                        <RefreshCw className={cn('w-4 h-4', (refreshing || loadingPublisher) && 'animate-spin')} />
+                        Refresh
+                    </button>
                 </div>
+
+                {/* Publisher filter pills */}
+                {!loadingPublisher && loadedPublishers.length > 0 && (
+                    <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1">
+                        <button
+                            onClick={() => setActivePublisher('all')}
+                            className={cn(
+                                'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                                activePublisher === 'all'
+                                    ? 'bg-sky-500 text-white'
+                                    : 'bg-white/5 text-text-muted hover:bg-white/10 hover:text-white'
+                            )}
+                        >
+                            All Sources
+                        </button>
+                        {loadedPublishers.map(slug => {
+                            const sample = publisherUpdates.find(u => u.publisher_slug === slug);
+                            return (
+                                <button
+                                    key={slug}
+                                    onClick={() => setActivePublisher(slug)}
+                                    className={cn(
+                                        'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap',
+                                        activePublisher === slug
+                                            ? 'bg-sky-500 text-white'
+                                            : 'bg-white/5 text-text-muted hover:bg-white/10 hover:text-white'
+                                    )}
+                                >
+                                    {sample?.publisher || slug}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {loadingPublisher ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="bg-surface border border-white/5 rounded-2xl overflow-hidden animate-pulse">
+                                <div className="w-full h-36 bg-white/5" />
+                                <div className="p-4 space-y-2">
+                                    <div className="h-3 bg-white/5 rounded w-1/3" />
+                                    <div className="h-4 bg-white/5 rounded w-full" />
+                                    <div className="h-3 bg-white/5 rounded w-2/3" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredPublisher.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredPublisher.slice(0, 9).map(update => {
+                            const gradient = PUBLISHER_COLORS[update.publisher_slug] || 'from-slate-500 to-gray-600';
+                            return (
+                                <a
+                                    key={update.id}
+                                    href={update.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-sky-500/40 transition-all flex flex-col"
+                                >
+                                    {/* Image or gradient fallback */}
+                                    {update.image_url ? (
+                                        <img
+                                            src={update.image_url}
+                                            alt={update.title}
+                                            className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+                                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                        />
+                                    ) : null}
+                                    <div
+                                        className={cn(
+                                            'w-full h-36 bg-gradient-to-br items-center justify-center',
+                                            gradient,
+                                            update.image_url ? 'hidden' : 'flex'
+                                        )}
+                                    >
+                                        <Building2 className="w-10 h-10 text-white/40" />
+                                    </div>
+
+                                    <div className="p-4 flex flex-col flex-1">
+                                        {/* Publisher badge */}
+                                        <span className={cn(
+                                            'self-start text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 bg-gradient-to-r text-white',
+                                            gradient
+                                        )}>
+                                            {update.publisher}
+                                        </span>
+
+                                        <h3 className="font-semibold text-white text-sm line-clamp-2 mb-1 group-hover:text-sky-300 transition-colors">
+                                            {update.title}
+                                        </h3>
+
+                                        {update.summary && (
+                                            <p className="text-xs text-text-muted line-clamp-2 mb-3 flex-1">
+                                                {update.summary}
+                                            </p>
+                                        )}
+
+                                        <div className="flex items-center justify-between text-[10px] text-text-muted mt-auto">
+                                            <span>
+                                                {update.published_at
+                                                    ? new Date(update.published_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
+                                                    : 'Recent'}
+                                            </span>
+                                            <span className="flex items-center gap-1 text-sky-400 group-hover:gap-2 transition-all">
+                                                Read more <ExternalLink size={10} />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </a>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* Empty state — feed not yet populated */
+                    <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
+                        <Newspaper className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                        <p className="text-white font-semibold mb-1">No publisher news yet</p>
+                        <p className="text-sm text-text-muted mb-4">
+                            The feed is populated by a scheduled background job every 6 hours.
+                            Deploy your Supabase Edge Function to start receiving articles.
+                        </p>
+                        <button
+                            onClick={handleRefreshPublisher}
+                            className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-sm font-medium transition-colors"
+                        >
+                            Check again
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Hot Takes */}
