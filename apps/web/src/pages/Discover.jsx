@@ -12,53 +12,13 @@ import ActivityFeed from '../components/AcitvityFeed';
 import { getTrendingBooks } from '../services/activityService';
 import { getPublisherUpdates, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
+import { getWeeklyTrendingBooks, triggerNYTFetch } from '../services/weeklyTrendingService';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
 // ═══════════════════════════════════════════════════════════
 
-const TRENDING_BOOKS = [
-    {
-        id: 1,
-        title: 'Tomorrow, and Tomorrow, and Tomorrow',
-        author: 'Gabrielle Zevin',
-        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1636978687i/58784475.jpg',
-        rating: 4.3,
-        trend: '+23%',
-        readers: 1243,
-        tags: ['Fiction', 'Contemporary']
-    },
-    {
-        id: 2,
-        title: 'Fourth Wing',
-        author: 'Rebecca Yarros',
-        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1701980900i/61431922.jpg',
-        rating: 4.5,
-        trend: '+45%',
-        readers: 2891,
-        tags: ['Fantasy', 'Romance']
-    },
-    {
-        id: 3,
-        title: 'The Housemaid',
-        author: 'Freida McFadden',
-        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1643228739i/60194514.jpg',
-        rating: 4.2,
-        trend: '+18%',
-        readers: 987,
-        tags: ['Thriller', 'Mystery']
-    },
-    {
-        id: 4,
-        title: 'Happy Place',
-        author: 'Emily Henry',
-        cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1667240965i/61718053.jpg',
-        rating: 4.1,
-        trend: '+12%',
-        readers: 756,
-        tags: ['Romance', 'Contemporary']
-    }
-];
+// TRENDING_BOOKS static mock removed — replaced by live NYT bestsellers
 
 const ACTIVE_READERS = [
     { id: 1, name: 'Sarah Chen', avatar: null, currentBook: 'Atomic Habits', progress: 67, readingTime: '2h today' },
@@ -129,6 +89,13 @@ export default function Discover() {
     const [activePublisher, setActivePublisher] = useState('all');
     const [refreshing, setRefreshing] = useState(false);
 
+    // NYT Bestsellers state
+    const [nytBooks, setNytBooks]           = useState([]);
+    const [loadingNYT, setLoadingNYT]       = useState(true);
+    const [refreshingNYT, setRefreshingNYT] = useState(false);
+    const [nytList, setNytList]             = useState('hardcover-fiction');
+    const [nytWeekStart, setNytWeekStart]   = useState(null);
+
     // Quiz state
     const [dailyQuiz, setDailyQuiz]             = useState(null);
     const [loadingQuiz, setLoadingQuiz]         = useState(true);
@@ -139,6 +106,15 @@ export default function Discover() {
     const [quizGenError, setQuizGenError]       = useState(null);
 
     useEffect(() => {
+        // Load NYT weekly bestsellers
+        (async () => {
+            setLoadingNYT(true);
+            const { data, weekStart } = await getWeeklyTrendingBooks('all', 20);
+            setNytBooks(data);
+            setNytWeekStart(weekStart);
+            setLoadingNYT(false);
+        })();
+
         // Load AI-generated book facts
         (async () => {
             setFactsLoading(true);
@@ -220,6 +196,21 @@ export default function Discover() {
 
     // Unique publishers in the loaded data
     const loadedPublishers = [...new Set(publisherUpdates.map(u => u.publisher_slug))];
+
+    const handleRefreshNYT = async () => {
+        if (refreshingNYT) return;
+        setRefreshingNYT(true);
+        try {
+            await triggerNYTFetch();
+            const { data, weekStart } = await getWeeklyTrendingBooks('all', 20);
+            setNytBooks(data);
+            setNytWeekStart(weekStart);
+        } catch (err) {
+            console.error('NYT refresh error:', err);
+        } finally {
+            setRefreshingNYT(false);
+        }
+    };
 
     const handleGenerateDiscoverFact = async () => {
         if (generatingFact) return;
@@ -357,47 +348,136 @@ export default function Discover() {
                 )}
             </div>
 
-            {/* Trending Books */}
+            {/* NYT Weekly Bestsellers */}
             <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-primary" />
-                        <h2 className="text-xl font-bold text-white">Trending Now</h2>
+                        <h2 className="text-xl font-bold text-white">NYT Bestsellers</h2>
+                        {nytWeekStart && (
+                            <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                                Week of {new Date(nytWeekStart + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                        )}
                     </div>
-                    <button className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
-                        View all <ChevronRight size={14} />
-                    </button>
-                </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {TRENDING_BOOKS.map(book => (
-                        <div key={book.id} className="group bg-surface border border-white/5 rounded-2xl p-4 hover:border-primary/40 transition-all cursor-pointer">
-                            <div className="relative mb-3">
-                                <img src={book.cover} alt={book.title} className="w-full h-48 object-cover rounded-xl" />
-                                <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                                    <TrendingUp size={10} />
-                                    {book.trend}
-                                </div>
-                            </div>
-                            <h3 className="font-semibold text-white text-sm mb-1 line-clamp-1">{book.title}</h3>
-                            <p className="text-text-muted text-xs mb-2">{book.author}</p>
-                            <div className="flex items-center justify-between text-xs">
-                                <div className="flex items-center gap-1 text-amber-400">
-                                    <Star size={12} fill="currentColor" />
-                                    <span>{book.rating}</span>
-                                </div>
-                                <div className="flex items-center gap-1 text-text-muted">
-                                    <Users size={12} />
-                                    <span>{book.readers}</span>
-                                </div>
-                            </div>
-                            <div className="flex gap-1 mt-2">
-                                {book.tags.map(tag => (
-                                    <span key={tag} className="text-[10px] px-2 py-0.5 bg-white/5 text-text-muted rounded-full">{tag}</span>
-                                ))}
-                            </div>
+                    <div className="flex items-center gap-2">
+                        {/* List switcher */}
+                        <div className="flex bg-surface border border-white/10 rounded-lg p-0.5 text-xs">
+                            {[
+                                { key: 'hardcover-fiction',    label: 'Fiction'     },
+                                { key: 'hardcover-nonfiction', label: 'Non-Fiction' },
+                                { key: 'all',                  label: 'All'         },
+                            ].map(tab => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setNytList(tab.key)}
+                                    className={cn(
+                                        'px-3 py-1.5 rounded-md transition-all font-medium',
+                                        nytList === tab.key
+                                            ? 'bg-primary text-white'
+                                            : 'text-text-muted hover:text-white'
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
-                    ))}
+                        <button
+                            onClick={handleRefreshNYT}
+                            disabled={refreshingNYT}
+                            title="Fetch latest NYT list"
+                            className={cn(
+                                'p-2 rounded-lg border transition-all',
+                                refreshingNYT
+                                    ? 'border-white/10 text-text-muted cursor-not-allowed'
+                                    : 'border-white/10 text-text-muted hover:border-primary/50 hover:text-primary'
+                            )}
+                        >
+                            <RefreshCw className={cn('w-4 h-4', refreshingNYT && 'animate-spin')} />
+                        </button>
+                    </div>
                 </div>
+
+                {loadingNYT ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[...Array(8)].map((_, i) => (
+                            <div key={i} className="bg-surface/50 border border-white/5 rounded-2xl p-4 animate-pulse">
+                                <div className="w-full h-48 bg-white/5 rounded-xl mb-3" />
+                                <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
+                                <div className="h-3 bg-white/10 rounded w-1/2" />
+                            </div>
+                        ))}
+                    </div>
+                ) : (() => {
+                    const filtered = nytList === 'all'
+                        ? nytBooks
+                        : nytBooks.filter(b => b.list_name === nytList);
+
+                    if (filtered.length === 0) {
+                        return (
+                            <div className="bg-surface/50 border border-white/10 rounded-2xl p-10 text-center">
+                                <TrendingUp className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-40" />
+                                <p className="text-text-muted text-sm mb-4">No bestsellers loaded yet for this week.</p>
+                                <button
+                                    onClick={handleRefreshNYT}
+                                    disabled={refreshingNYT}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 text-primary hover:bg-primary/30 rounded-xl font-medium text-sm transition-colors"
+                                >
+                                    {refreshingNYT ? (
+                                        <><RefreshCw className="w-4 h-4 animate-spin" /> Fetching...</>
+                                    ) : (
+                                        <><RefreshCw className="w-4 h-4" /> Fetch NYT Bestsellers</>
+                                    )}
+                                </button>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {filtered.slice(0, 8).map(book => (
+                                <a
+                                    key={book.id}
+                                    href={book.amazon_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group bg-surface border border-white/5 rounded-2xl p-4 hover:border-primary/40 transition-all cursor-pointer block"
+                                >
+                                    <div className="relative mb-3">
+                                        {book.image_url ? (
+                                            <img
+                                                src={book.image_url}
+                                                alt={book.title}
+                                                className="w-full h-48 object-cover rounded-xl"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-48 bg-white/5 rounded-xl flex items-center justify-center">
+                                                <BookOpen className="w-10 h-10 text-text-muted opacity-30" />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center">
+                                            #{book.rank}
+                                        </div>
+                                        <div className="absolute top-2 right-2 bg-primary/90 text-white text-[10px] font-medium px-2 py-0.5 rounded-full capitalize">
+                                            {book.list_name === 'hardcover-fiction' ? 'Fiction' : book.list_name === 'hardcover-nonfiction' ? 'Non-Fiction' : book.list_name}
+                                        </div>
+                                    </div>
+                                    <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2 group-hover:text-primary transition-colors" title={book.title}>
+                                        {book.title}
+                                    </h3>
+                                    <p className="text-text-muted text-xs mb-2 line-clamp-1">{book.author}</p>
+                                    {book.description && (
+                                        <p className="text-[11px] text-text-muted/70 line-clamp-2 leading-relaxed">{book.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-1 mt-2 text-[10px] text-primary/60">
+                                        <ExternalLink size={10} />
+                                        <span>View on Amazon</span>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    );
+                })()}
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6">
@@ -432,22 +512,11 @@ export default function Discover() {
                                 </div>
                             ))
                         ) : (
-                            TRENDING_BOOKS.slice(0, 5).map((book, index) => (
-                                <div key={book.id} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                        {index + 1}
-                                    </div>
-                                    <img src={book.cover} alt={book.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
-                                        <p className="text-xs text-text-muted">{book.author}</p>
-                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-orange-400">
-                                            <TrendingUp size={10} />
-                                            <span>{book.trend} this week</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
+                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+                                <TrendingUp size={24} className="text-text-muted opacity-40" />
+                                <p className="text-sm text-text-muted">No trending data yet</p>
+                                <p className="text-xs text-text-muted opacity-60">Community activity will appear here</p>
+                            </div>
                         )}
                     </div>
                 </div>
