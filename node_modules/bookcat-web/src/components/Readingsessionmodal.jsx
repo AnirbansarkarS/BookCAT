@@ -5,6 +5,7 @@ import { logReadingSession } from '../services/bookService';
 import { useAuth } from '../hooks/useAuth';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { statsCache } from '../utils/statsCache';
+import { logReadingSessionActivity } from '../services/activityService';
 
 export default function ReadingSessionModal({ book, intent, onClose, onComplete, onProgressSave }) {
     const { user } = useAuth();
@@ -245,6 +246,17 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
                         console.error('❌ Failed to save session:', result.error);
                     } else {
                         console.log('✅ Session saved successfully');
+                        
+                        // Log activity if session was significant (>= 5 minutes)
+                        if (dbDuration >= 5) {
+                            await logReadingSessionActivity(
+                                user.id,
+                                book.id,
+                                book.title,
+                                dbDuration,
+                                pagesRead
+                            );
+                        }
                     }
                 }
             } catch (err) {

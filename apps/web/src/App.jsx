@@ -58,7 +58,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   >
-                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route index element={<Navigate to="/discover" replace />} />
                     <Route path="discover" element={<Discover />} />
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="library" element={<Library />} />
