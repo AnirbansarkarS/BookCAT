@@ -11,6 +11,7 @@ import { cn } from '../lib/utils';
 import ActivityFeed from '../components/AcitvityFeed';
 import { getTrendingBooks } from '../services/activityService';
 import { getPublisherUpdates, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
+import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
@@ -72,13 +73,7 @@ const NEW_RELEASES = [
     { id: 3, title: 'The Heaven & Earth Grocery Store', author: 'James McBride', cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1670520732i/65213659.jpg', releaseDate: '2024-02-08' },
 ];
 
-const FUN_FACTS = [
-    "The smell of old books is caused by the breakdown of chemical compounds in the paper.",
-    "The longest novel ever written is 'Artamène ou le Grand Cyrus' at 13,095 pages.",
-    "Iceland publishes more books per capita than any other country.",
-    "The most expensive book ever sold was the Codex Leicester by Leonardo da Vinci for $30.8 million.",
-    "Reading can reduce stress by up to 68% in just 6 minutes.",
-];
+// FUN_FACTS removed — replaced by AI-generated daily_book_facts from Groq
 
 const HOT_TAKES = [
     { id: 1, text: "E-readers are better than physical books for the environment", agree: 67, disagree: 33, author: 'BookLover23' },
@@ -124,13 +119,15 @@ const PUBLISHER_COLORS = {
 
 export default function Discover() {
     const { user } = useAuth();
-    const [funFact, setFunFact] = useState(FUN_FACTS[0]);
-    const [refreshing, setRefreshing] = useState(false);
+    const [bookFacts, setBookFacts] = useState([]);
+    const [factsLoading, setFactsLoading] = useState(true);
+    const [generatingFact, setGeneratingFact] = useState(false);
     const [trendingBooks, setTrendingBooks] = useState([]);
     const [loadingTrending, setLoadingTrending] = useState(true);
     const [publisherUpdates, setPublisherUpdates] = useState([]);
     const [loadingPublisher, setLoadingPublisher] = useState(true);
     const [activePublisher, setActivePublisher] = useState('all');
+    const [refreshing, setRefreshing] = useState(false);
 
     // Quiz state
     const [dailyQuiz, setDailyQuiz]             = useState(null);
@@ -142,9 +139,13 @@ export default function Discover() {
     const [quizGenError, setQuizGenError]       = useState(null);
 
     useEffect(() => {
-        // Rotate fun fact daily
-        const factIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % FUN_FACTS.length;
-        setFunFact(FUN_FACTS[factIndex]);
+        // Load AI-generated book facts
+        (async () => {
+            setFactsLoading(true);
+            const facts = await getTodayBookFacts();
+            setBookFacts(facts);
+            setFactsLoading(false);
+        })();
 
         // Load trending books based on activity
         (async () => {
@@ -220,12 +221,20 @@ export default function Discover() {
     // Unique publishers in the loaded data
     const loadedPublishers = [...new Set(publisherUpdates.map(u => u.publisher_slug))];
 
-    const refreshFunFact = () => {
-        setRefreshing(true);
-        const currentIndex = FUN_FACTS.indexOf(funFact);
-        const nextIndex = (currentIndex + 1) % FUN_FACTS.length;
-        setFunFact(FUN_FACTS[nextIndex]);
-        setTimeout(() => setRefreshing(false), 500);
+    const handleGenerateDiscoverFact = async () => {
+        if (generatingFact) return;
+        setGeneratingFact(true);
+        try {
+            const result = await triggerBookFactGeneration();
+            if (result.success) {
+                const facts = await getTodayBookFacts();
+                setBookFacts(facts);
+            }
+        } catch (err) {
+            console.error('Error generating fact:', err);
+        } finally {
+            setGeneratingFact(false);
+        }
     };
 
     return (
@@ -248,26 +257,104 @@ export default function Discover() {
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
             </div>
 
-            {/* Fun Fact of the Day */}
-            <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-6">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                            <Lightbulb className="w-5 h-5 text-amber-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-amber-400 mb-2">📚 Book Fact of the Day</h3>
-                            <p className="text-white text-sm leading-relaxed">{funFact}</p>
-                        </div>
+            {/* Book Fact of the Day — AI-generated via Groq */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Lightbulb className="w-5 h-5 text-amber-400" />
+                        <h2 className="text-lg font-semibold text-white">Book Fact of the Day</h2>
                     </div>
-                    <button
-                        onClick={refreshFunFact}
-                        disabled={refreshing}
-                        className="p-2 hover:bg-amber-500/20 rounded-lg transition-colors flex-shrink-0"
-                    >
-                        <RefreshCw className={cn('w-4 h-4 text-amber-400', refreshing && 'animate-spin')} />
-                    </button>
+                    {bookFacts.length < 2 && (
+                        <button
+                            onClick={handleGenerateDiscoverFact}
+                            disabled={generatingFact}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                generatingFact
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                            )}
+                        >
+                            {generatingFact ? (
+                                <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    New Fact ({bookFacts.length}/2)
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
+
+                {factsLoading ? (
+                    <div className="grid md:grid-cols-2 gap-3">
+                        {[1, 2].map(i => (
+                            <div key={i} className="bg-surface/50 border border-white/10 rounded-xl p-5 animate-pulse">
+                                <div className="h-4 bg-white/10 rounded w-3/4 mb-3" />
+                                <div className="h-3 bg-white/10 rounded w-1/2" />
+                            </div>
+                        ))}
+                    </div>
+                ) : bookFacts.length > 0 ? (
+                    <div className="grid md:grid-cols-2 gap-3">
+                        {bookFacts.map((fact) => (
+                            <div
+                                key={fact.id}
+                                className={cn(
+                                    "bg-gradient-to-br from-amber-500/10 to-orange-500/5",
+                                    "border border-amber-500/20 rounded-xl p-5",
+                                    "hover:border-amber-500/40 transition-all duration-300"
+                                )}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <span className="text-2xl flex-shrink-0 mt-0.5">{fact.emoji || '📚'}</span>
+                                    <div className="min-w-0">
+                                        <p className="text-white text-sm leading-relaxed">{fact.fact_text}</p>
+                                        {fact.book_title && fact.book_title !== 'General' && (
+                                            <p className="text-xs text-amber-400/80 mt-2 font-medium">
+                                                — {fact.book_title}{fact.book_author ? ` by ${fact.book_author}` : ''}
+                                            </p>
+                                        )}
+                                        <span className="inline-block mt-2 px-2 py-0.5 bg-amber-500/15 text-amber-400/70 rounded-full text-[10px] uppercase tracking-wider font-medium">
+                                            {fact.category}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
+                        <Lightbulb className="w-10 h-10 text-amber-400/40 mx-auto mb-3" />
+                        <p className="text-text-muted text-sm mb-3">No facts yet today</p>
+                        <button
+                            onClick={handleGenerateDiscoverFact}
+                            disabled={generatingFact}
+                            className={cn(
+                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors",
+                                generatingFact
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                            )}
+                        >
+                            {generatingFact ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Generate First Fact
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Trending Books */}

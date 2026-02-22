@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Clock, TrendingUp, Plus, Play, BarChart3 } from 'lucide-react';
+import { BookOpen, Clock, TrendingUp, Plus, Play, BarChart3, Lightbulb, RefreshCw, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getUserBooks } from '../services/bookService';
+import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 import RealtimeStatsWidget from '../components/RealtimeStatsWidget';
 import { cn } from '../lib/utils';
 import { eventBus, EVENTS } from '../utils/eventBus';
@@ -11,6 +12,9 @@ export default function Dashboard() {
     const { user } = useAuth();
     const [recentBooks, setRecentBooks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [bookFacts, setBookFacts] = useState([]);
+    const [factsLoading, setFactsLoading] = useState(true);
+    const [generatingFact, setGeneratingFact] = useState(false);
 
     const loadRecentBooks = async () => {
         if (!user) return;
@@ -31,8 +35,36 @@ export default function Dashboard() {
         }
     };
 
+    const loadBookFacts = async () => {
+        setFactsLoading(true);
+        try {
+            const facts = await getTodayBookFacts();
+            setBookFacts(facts);
+        } catch (err) {
+            console.error('Error loading book facts:', err);
+        } finally {
+            setFactsLoading(false);
+        }
+    };
+
+    const handleGenerateFact = async () => {
+        if (generatingFact) return;
+        setGeneratingFact(true);
+        try {
+            const result = await triggerBookFactGeneration();
+            if (result.success) {
+                await loadBookFacts();
+            }
+        } catch (err) {
+            console.error('Error generating fact:', err);
+        } finally {
+            setGeneratingFact(false);
+        }
+    };
+
     useEffect(() => {
         loadRecentBooks();
+        loadBookFacts();
 
         // Listen for session completion events
         const handleRefresh = () => {
@@ -74,6 +106,106 @@ export default function Dashboard() {
                     </div>
                 </div>
                 <RealtimeStatsWidget />
+            </div>
+
+            {/* Book Fact of the Day */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Lightbulb className="w-5 h-5 text-amber-400" />
+                        Book Fact of the Day
+                    </h2>
+                    {bookFacts.length < 2 && (
+                        <button
+                            onClick={handleGenerateFact}
+                            disabled={generatingFact}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                generatingFact
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                            )}
+                        >
+                            {generatingFact ? (
+                                <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    New Fact ({bookFacts.length}/2)
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+
+                {factsLoading ? (
+                    <div className="grid md:grid-cols-2 gap-3">
+                        {[1, 2].map(i => (
+                            <div key={i} className="bg-surface/50 border border-white/10 rounded-xl p-5 animate-pulse">
+                                <div className="h-4 bg-white/10 rounded w-3/4 mb-3" />
+                                <div className="h-3 bg-white/10 rounded w-1/2" />
+                            </div>
+                        ))}
+                    </div>
+                ) : bookFacts.length > 0 ? (
+                    <div className="grid md:grid-cols-2 gap-3">
+                        {bookFacts.map((fact) => (
+                            <div
+                                key={fact.id}
+                                className={cn(
+                                    "bg-gradient-to-br from-amber-500/10 to-orange-500/5",
+                                    "border border-amber-500/20 rounded-xl p-5",
+                                    "hover:border-amber-500/40 transition-all duration-300"
+                                )}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <span className="text-2xl flex-shrink-0 mt-0.5">{fact.emoji || '📚'}</span>
+                                    <div className="min-w-0">
+                                        <p className="text-white text-sm leading-relaxed">{fact.fact_text}</p>
+                                        {fact.book_title && fact.book_title !== 'General' && (
+                                            <p className="text-xs text-amber-400/80 mt-2 font-medium">
+                                                — {fact.book_title}{fact.book_author ? ` by ${fact.book_author}` : ''}
+                                            </p>
+                                        )}
+                                        <span className="inline-block mt-2 px-2 py-0.5 bg-amber-500/15 text-amber-400/70 rounded-full text-[10px] uppercase tracking-wider font-medium">
+                                            {fact.category}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-surface/50 border border-white/10 rounded-xl p-6 text-center">
+                        <Lightbulb className="w-10 h-10 text-amber-400/40 mx-auto mb-3" />
+                        <p className="text-text-muted text-sm mb-3">No facts yet today</p>
+                        <button
+                            onClick={handleGenerateFact}
+                            disabled={generatingFact}
+                            className={cn(
+                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors",
+                                generatingFact
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                            )}
+                        >
+                            {generatingFact ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Generate First Fact
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Currently Reading */}
