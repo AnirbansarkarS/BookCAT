@@ -1,6 +1,5 @@
--- Run this in Supabase Dashboard → SQL Editor to schedule weekly NYT bestseller fetching.
--- Prerequisite: pg_cron and pg_net extensions must be enabled.
--- Runs every Sunday at 00:05 UTC so NYT has updated their list by then.
+-- Update the cron job to include all 4 lists and use the overview endpoint
+SELECT cron.unschedule('fetch-nyt-bestsellers-weekly');
 
 SELECT cron.schedule(
     'fetch-nyt-bestsellers-weekly',
@@ -16,9 +15,3 @@ SELECT cron.schedule(
     ) AS request_id;
     $$
 );
-
--- Verify
--- SELECT * FROM cron.job WHERE jobname = 'fetch-nyt-bestsellers-weekly';
-
--- Remove if needed
--- SELECT cron.unschedule('fetch-nyt-bestsellers-weekly');

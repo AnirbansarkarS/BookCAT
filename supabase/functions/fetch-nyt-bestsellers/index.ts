@@ -1,8 +1,8 @@
 // supabase/functions/fetch-nyt-bestsellers/index.ts
 // Deno / Supabase Edge Function
-// Fetches NYT weekly bestsellers, enriches with Google Books covers,
-// generates Amazon links, and upserts into weekly_trending_books.
-// Runs every Sunday midnight UTC via pg_cron.
+// Strategy: Try NYT overview endpoint first. If it fails (401/403/etc),
+// fall back to Google Books API to fetch popular books by category.
+// Covers always come from Google Books. Amazon links built from ISBN.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -11,79 +11,109 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// NYT lists to fetch (up to 2 so we have variety; Fiction + Non-Fiction)
-const NYT_LISTS = ['hardcover-fiction', 'hardcover-nonfiction'];
-const NYT_BASE  = 'https://api.nytimes.com/svc/books/v3/lists/current';
-
-// Google Books API
+const NYT_OVERVIEW = 'https://api.nytimes.com/svc/books/v3/lists/overview.json';
 const GOOGLE_BOOKS_BASE = 'https://www.googleapis.com/books/v1/volumes';
+
+// Category queries for Google Books fallback (maps list_name → search query)
+const GOOGLE_FALLBACK_QUERIES: Record<string, string> = {
+    'hardcover-fiction':      'subject:fiction&orderBy=newest&langRestrict=en',
+    'hardcover-nonfiction':   'subject:nonfiction&orderBy=newest&langRestrict=en',
+    'young-adult-hardcover':  'subject:young+adult&orderBy=newest&langRestrict=en',
+    'paperback-nonfiction':   'subject:biography&orderBy=newest&langRestrict=en',
+};
+
+const WANTED_LISTS = new Set(Object.keys(GOOGLE_FALLBACK_QUERIES));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Get Monday of the current week (UTC) — used as week_start */
-function getWeekStart(): string {
-    const now = new Date();
-    const day = now.getUTCDay(); // 0 = Sunday
-    const diff = day === 0 ? -6 : 1 - day; // Monday
-    const monday = new Date(now);
-    monday.setUTCDate(now.getUTCDate() + diff);
-    return monday.toISOString().split('T')[0];
-}
-
-/** Build Amazon search URL from ISBN or title */
 function buildAmazonUrl(isbn: string | null, title: string): string {
-    if (isbn) {
-        return `https://www.amazon.com/dp/${isbn}`;
-    }
+    if (isbn) return `https://www.amazon.com/dp/${isbn}`;
     return `https://www.amazon.com/s?k=${encodeURIComponent(title)}`;
 }
 
-/** Fetch cover image URL from Google Books using ISBN */
+function getGoogleCoverFromItem(item: any): string | null {
+    const imageLinks = item?.volumeInfo?.imageLinks;
+    if (!imageLinks) return null;
+    const raw = imageLinks.extraLarge || imageLinks.large || imageLinks.medium
+        || imageLinks.small || imageLinks.thumbnail;
+    return raw ? raw.replace('http://', 'https://') : null;
+}
+
 async function fetchGoogleBooksCover(
-    isbn: string | null,
-    title: string,
-    author: string,
-    googleKey: string | undefined,
+    isbn: string | null, title: string, author: string, googleKey?: string,
 ): Promise<string | null> {
     try {
-        const query = isbn
+        const q = isbn
             ? `isbn:${isbn}`
             : `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`;
-
         const url = googleKey
-            ? `${GOOGLE_BOOKS_BASE}?q=${query}&key=${googleKey}&maxResults=1`
-            : `${GOOGLE_BOOKS_BASE}?q=${query}&maxResults=1`;
-
+            ? `${GOOGLE_BOOKS_BASE}?q=${q}&key=${googleKey}&maxResults=1`
+            : `${GOOGLE_BOOKS_BASE}?q=${q}&maxResults=1`;
         const res = await fetch(url);
         if (!res.ok) return null;
+        const json = await res.json();
+        return getGoogleCoverFromItem(json.items?.[0]);
+    } catch { return null; }
+}
+
+// ─── Google Books Fallback ───────────────────────────────────────────────────
+
+interface FallbackBook {
+    title: string;
+    author: string;
+    isbn: string | null;
+    image_url: string | null;
+    description: string | null;
+    publisher: string | null;
+    rank: number;
+}
+
+async function fetchGoogleBooksForCategory(
+    query: string, googleKey?: string, maxResults = 15,
+): Promise<FallbackBook[]> {
+    try {
+        const url = googleKey
+            ? `${GOOGLE_BOOKS_BASE}?q=${query}&key=${googleKey}&maxResults=${maxResults}&printType=books`
+            : `${GOOGLE_BOOKS_BASE}?q=${query}&maxResults=${maxResults}&printType=books`;
+
+        const res = await fetch(url);
+        if (!res.ok) {
+            console.error('Google Books API error:', res.status);
+            return [];
+        }
 
         const json = await res.json();
-        const imageLinks = json.items?.[0]?.volumeInfo?.imageLinks;
-        if (!imageLinks) return null;
+        const items = json.items || [];
 
-        // Prefer large thumbnail, fall back to thumbnail
-        const raw = imageLinks.extraLarge || imageLinks.large || imageLinks.medium || imageLinks.thumbnail;
-        if (!raw) return null;
+        return items.map((item: any, idx: number) => {
+            const vol = item.volumeInfo || {};
+            const ids = vol.industryIdentifiers || [];
+            const isbn13 = ids.find((i: any) => i.type === 'ISBN_13')?.identifier || null;
+            const isbn10 = ids.find((i: any) => i.type === 'ISBN_10')?.identifier || null;
+            const isbn = isbn13 || isbn10 || null;
 
-        // Force HTTPS
-        return raw.replace('http://', 'https://');
-    } catch {
-        return null;
+            return {
+                title: vol.title || 'Unknown Title',
+                author: (vol.authors || []).join(', ') || 'Unknown Author',
+                isbn,
+                image_url: getGoogleCoverFromItem(item),
+                description: vol.description ? vol.description.substring(0, 500) : null,
+                publisher: vol.publisher || null,
+                rank: idx + 1,
+            };
+        });
+    } catch (err) {
+        console.error('Google Books fallback error:', err);
+        return [];
     }
 }
 
-/** Fetch one NYT list */
-async function fetchNYTList(listName: string, nytKey: string): Promise<NytBook[]> {
-    const url = `${NYT_BASE}/${listName}.json?api-key=${nytKey}`;
-    const res = await fetch(url);
+// ─── NYT types ───────────────────────────────────────────────────────────────
 
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`NYT API error for ${listName}: ${res.status} ${err}`);
-    }
-
-    const json = await res.json();
-    return (json.results?.books || []) as NytBook[];
+interface NytOverviewList {
+    list_name_encoded: string;
+    display_name: string;
+    books: NytBook[];
 }
 
 interface NytBook {
@@ -110,101 +140,163 @@ Deno.serve(async (req: Request) => {
     const nytKey      = Deno.env.get('NYT_BOOKS_API_KEY');
     const googleKey   = Deno.env.get('GOOGLE_BOOKS_API_KEY'); // optional
 
-    if (!nytKey) {
-        return new Response(
-            JSON.stringify({ ok: false, error: 'NYT_BOOKS_API_KEY not set' }),
-            { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
-        );
-    }
-
     const supabase = createClient(supabaseUrl, serviceKey, {
         auth: { persistSession: false },
     });
 
-    const weekStart = getWeekStart();
-    console.log(`Fetching NYT bestsellers for week starting ${weekStart}`);
-
-    // ── Parse optional body to allow overriding lists ────────────────────────
-    let listsToFetch = NYT_LISTS;
+    // ── Parse optional body ──────────────────────────────────────────────────
+    let wantedLists = WANTED_LISTS;
     try {
         const body = await req.json().catch(() => ({}));
         if (Array.isArray(body.lists) && body.lists.length > 0) {
-            listsToFetch = body.lists;
+            wantedLists = new Set(body.lists as string[]);
         }
-    } catch { /* use defaults */ }
+    } catch { /* defaults */ }
 
+    const today = new Date().toISOString().split('T')[0];
+    let source = 'google-books'; // track which source we used
+    let publishedDate = today;
+
+    // ── 1. Try NYT first ─────────────────────────────────────────────────────
+    interface ProcessableList {
+        listName: string;
+        books: FallbackBook[];
+    }
+
+    const listsToProcess: ProcessableList[] = [];
+    let nytSuccess = false;
+
+    if (nytKey) {
+        console.log('Trying NYT overview endpoint...');
+        try {
+            const overviewRes = await fetch(`${NYT_OVERVIEW}?api-key=${nytKey}`);
+
+            if (overviewRes.ok) {
+                const overviewJson = await overviewRes.json();
+                const allLists = (overviewJson.results?.lists || []) as NytOverviewList[];
+                publishedDate = overviewJson.results?.published_date || today;
+
+                const targetLists = allLists.filter(l => wantedLists.has(l.list_name_encoded));
+                console.log(`NYT success! ${targetLists.length} lists, published ${publishedDate}`);
+
+                for (const list of targetLists) {
+                    const books: FallbackBook[] = list.books.slice(0, 15).map(b => ({
+                        title: b.title,
+                        author: b.author,
+                        isbn: b.primary_isbn13 || b.primary_isbn10 || null,
+                        image_url: null, // will fetch from Google Books below
+                        description: b.description || null,
+                        publisher: b.publisher || null,
+                        rank: b.rank,
+                    }));
+                    listsToProcess.push({ listName: list.list_name_encoded, books });
+                }
+
+                nytSuccess = true;
+                source = 'nyt';
+            } else {
+                const errText = await overviewRes.text();
+                console.warn(`NYT API returned ${overviewRes.status}, falling back to Google Books. Error: ${errText}`);
+            }
+        } catch (err) {
+            console.warn('NYT fetch failed, falling back to Google Books:', err);
+        }
+    } else {
+        console.log('No NYT_BOOKS_API_KEY set, using Google Books fallback');
+    }
+
+    // ── 2. Google Books fallback (if NYT failed) ─────────────────────────────
+    if (!nytSuccess) {
+        console.log('Using Google Books API as primary source...');
+        for (const listName of wantedLists) {
+            const query = GOOGLE_FALLBACK_QUERIES[listName];
+            if (!query) continue;
+
+            const books = await fetchGoogleBooksForCategory(query, googleKey);
+            if (books.length > 0) {
+                listsToProcess.push({ listName, books });
+                console.log(`Google Books: ${listName} → ${books.length} books`);
+            }
+        }
+    }
+
+    if (listsToProcess.length === 0) {
+        return new Response(
+            JSON.stringify({ ok: false, error: 'No books fetched from any source', source }),
+            { status: 502, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+        );
+    }
+
+    // ── 3. Delete old entries ────────────────────────────────────────────────
+    const { error: deleteErr } = await supabase
+        .from('weekly_trending_books')
+        .delete()
+        .neq('week_start', publishedDate);
+
+    if (deleteErr) console.warn('Delete old entries warning:', deleteErr.message);
+
+    // ── 4. Enrich covers + upsert ───────────────────────────────────────────
     const inserted: object[] = [];
     const errors: string[] = [];
 
-    for (const listName of listsToFetch) {
-        try {
-            console.log(`Fetching list: ${listName}`);
-            const nytBooks = await fetchNYTList(listName, nytKey);
+    for (const { listName, books } of listsToProcess) {
+        for (const book of books) {
+            try {
+                // Get cover from Google Books API
+                const imageUrl = book.image_url
+                    || await fetchGoogleBooksCover(book.isbn, book.title, book.author, googleKey);
 
-            // Delete previous weeks' entries for this list (keep current week)
-            await supabase
-                .from('weekly_trending_books')
-                .delete()
-                .eq('list_name', listName)
-                .neq('week_start', weekStart);
-
-            // Enrich and upsert books (process up to 10 per list to avoid timeouts)
-            const books = nytBooks.slice(0, 10);
-
-            for (const book of books) {
-                const isbn = book.primary_isbn13 || book.primary_isbn10 || null;
-
-                // Use NYT's own image first; fall back to Google Books
-                let imageUrl = book.book_image || null;
-                if (!imageUrl || imageUrl.includes('no_image')) {
-                    imageUrl = await fetchGoogleBooksCover(isbn, book.title, book.author, googleKey);
-                }
-
-                // Use NYT Amazon URL if available, otherwise build one
-                const amazonUrl = book.amazon_product_url || buildAmazonUrl(isbn, book.title);
+                const amazonUrl = buildAmazonUrl(book.isbn, book.title);
 
                 const row = {
                     title:       book.title,
                     author:      book.author,
-                    isbn:        isbn,
+                    isbn:        book.isbn,
                     image_url:   imageUrl,
                     amazon_url:  amazonUrl,
-                    description: book.description || null,
+                    description: book.description,
                     rank:        book.rank,
                     list_name:   listName,
-                    publisher:   book.publisher || null,
-                    week_start:  weekStart,
+                    publisher:   book.publisher,
+                    week_start:  publishedDate,
                 };
 
+                // Try upsert (works when ISBN is not null)
                 const { data, error: upsertErr } = await supabase
                     .from('weekly_trending_books')
-                    .upsert(row, {
-                        onConflict: isbn ? 'isbn,week_start,list_name' : undefined,
-                        ignoreDuplicates: false,
-                    })
+                    .upsert(row, { onConflict: 'isbn,week_start,list_name', ignoreDuplicates: false })
                     .select('id')
-                    .single();
+                    .maybeSingle();
 
                 if (upsertErr) {
-                    console.error(`Upsert error for "${book.title}":`, upsertErr);
-                    errors.push(`${book.title}: ${upsertErr.message}`);
+                    // Fallback: plain insert (e.g. null ISBN)
+                    const { data: iData, error: iErr } = await supabase
+                        .from('weekly_trending_books')
+                        .insert(row)
+                        .select('id')
+                        .maybeSingle();
+
+                    if (iErr) {
+                        errors.push(`${book.title}: ${iErr.message}`);
+                    } else {
+                        inserted.push({ id: iData?.id, title: book.title, rank: book.rank, list: listName });
+                    }
                 } else {
                     inserted.push({ id: data?.id, title: book.title, rank: book.rank, list: listName });
                 }
+            } catch (err) {
+                errors.push(`${book.title}: ${String(err)}`);
             }
-
-            console.log(`✅ Finished ${listName}: ${books.length} books`);
-        } catch (err) {
-            const msg = String(err);
-            console.error(`Error processing ${listName}:`, msg);
-            errors.push(`${listName}: ${msg}`);
         }
+        console.log(`✅ ${listName}: processed ${books.length} books`);
     }
 
     return new Response(
         JSON.stringify({
             ok: errors.length === 0,
-            week_start: weekStart,
+            source,
+            published_date: publishedDate,
+            lists_processed: listsToProcess.map(l => l.listName),
             inserted_count: inserted.length,
             errors: errors.length > 0 ? errors : undefined,
             books: inserted,

@@ -95,6 +95,10 @@ export default function Discover() {
     const [refreshingNYT, setRefreshingNYT] = useState(false);
     const [nytList, setNytList]             = useState('hardcover-fiction');
     const [nytWeekStart, setNytWeekStart]   = useState(null);
+
+    // Quiz state
+    const [dailyQuiz, setDailyQuiz]             = useState(null);
+    const [loadingQuiz, setLoadingQuiz]         = useState(true);
     const [quizSelected, setQuizSelected]       = useState(null);
     const [quizRevealed, setQuizRevealed]       = useState(false);
     const [quizSubmitting, setQuizSubmitting]   = useState(false);
@@ -508,22 +512,11 @@ export default function Discover() {
                                 </div>
                             ))
                         ) : (
-                            TRENDING_BOOKS.slice(0, 5).map((book, index) => (
-                                <div key={book.id} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                        {index + 1}
-                                    </div>
-                                    <img src={book.cover} alt={book.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
-                                        <p className="text-xs text-text-muted">{book.author}</p>
-                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-orange-400">
-                                            <TrendingUp size={10} />
-                                            <span>{book.trend} this week</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
+                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+                                <TrendingUp size={24} className="text-text-muted opacity-40" />
+                                <p className="text-sm text-text-muted">No trending data yet</p>
+                                <p className="text-xs text-text-muted opacity-60">Community activity will appear here</p>
+                            </div>
                         )}
                     </div>
                 </div>

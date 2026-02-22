@@ -8,13 +8,18 @@ import { supabase } from '../lib/supabase';
  */
 export const getWeeklyTrendingBooks = async (listName = 'all', limit = 10) => {
     try {
-        // Compute the Monday of the current week
-        const now = new Date();
-        const day = now.getDay(); // 0 = Sunday
-        const diff = day === 0 ? -6 : 1 - day;
-        const monday = new Date(now);
-        monday.setDate(now.getDate() + diff);
-        const weekStart = monday.toISOString().split('T')[0];
+        // First, find the most recent week_start in the table
+        const { data: latestRow, error: latestErr } = await supabase
+            .from('weekly_trending_books')
+            .select('week_start')
+            .order('week_start', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestErr) throw latestErr;
+        if (!latestRow) return { data: [], weekStart: null };
+
+        const weekStart = latestRow.week_start;
 
         let query = supabase
             .from('weekly_trending_books')
@@ -40,7 +45,7 @@ export const getWeeklyTrendingBooks = async (listName = 'all', limit = 10) => {
  * Manually trigger the NYT bestseller fetch Edge Function.
  * Useful for the "Refresh" button in the UI.
  */
-export const triggerNYTFetch = async (lists = ['hardcover-fiction', 'hardcover-nonfiction']) => {
+export const triggerNYTFetch = async (lists = ['hardcover-fiction', 'hardcover-nonfiction', 'young-adult-hardcover', 'paperback-nonfiction']) => {
     try {
         const { data, error } = await supabase.functions.invoke('fetch-nyt-bestsellers', {
             body: { lists },
