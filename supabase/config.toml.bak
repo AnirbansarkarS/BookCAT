@@ -1,0 +1,90 @@
+# supabase/config.toml
+# Full Supabase project configuration.
+# Edit this file to customise your local dev environment and cron schedules.
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[ingest]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+# Increase session length to 7 days
+jwt_expiry = 604800
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["https://localhost:5173"]
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = false
+
+# ─── Edge Functions ───────────────────────────────────────────────────────────
+
+[functions.fetch-publisher-feeds]
+verify_jwt = false   # Called by the scheduler, not by users
+
+[functions.generate-daily-quiz]
+verify_jwt = false   # Called by the scheduler, not by users
+
+# ─── Scheduled Jobs (pg_cron) ────────────────────────────────────────────────
+# Requires pg_cron extension enabled in your project dashboard.
+# In Supabase Cloud: Database → Extensions → pg_cron → Enable
+# Then these cron statements are run once on `supabase db push`.
+
+[[cron.jobs]]
+name        = "fetch-publisher-feeds-every-6h"
+schedule    = "0 */6 * * *"          # Every 6 hours: 00:00, 06:00, 12:00, 18:00
+command     = """
+    SELECT net.http_post(
+        url    := current_setting('app.supabase_url') || '/functions/v1/fetch-publisher-feeds',
+        headers := jsonb_build_object(
+            'Content-Type',  'application/json',
+            'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+        ),
+        body   := '{}'::jsonb
+    );
+"""
+
+[[cron.jobs]]
+name        = "generate-daily-quiz-midnight"
+schedule    = "0 0 * * *"            # Every day at midnight UTC
+command     = """
+    SELECT net.http_post(
+        url    := current_setting('app.supabase_url') || '/functions/v1/generate-daily-quiz',
+        headers := jsonb_build_object(
+            'Content-Type',  'application/json',
+            'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+        ),
+        body   := '{}'::jsonb
+    );
+"""
+
+# ─── Analytics (optional) ─────────────────────────────────────────────────────
+[analytics]
+enabled = false

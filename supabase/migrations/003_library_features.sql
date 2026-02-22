@@ -37,4 +37,4 @@ CREATE POLICY "Users can delete their own reading sessions"
 
 -- Create index for faster stats queries
 CREATE INDEX idx_reading_sessions_user_book ON public.reading_sessions(user_id, book_id);
-CREATE INDEX idx_reading_sessions_created_at ON public.reading_sessions(created_at);
+-- CREATE INDEX idx_reading_sessions_created_at ON public.reading_sessions(created_at);
