@@ -1,6 +1,6 @@
 // supabase/functions/generate-daily-quiz/index.ts
 // Deno / Supabase Edge Function
-// Generates one AI quiz question per day using Gemini 2.0 Flash and stores
+// Generates one AI quiz question per day using Groq (LLaMA) and stores
 // it in the daily_quiz table.  Runs at midnight UTC via pg_cron.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -43,10 +43,10 @@ const BOOK_POOL = [
 const QUESTION_TYPES = ['quote', 'author', 'genre', 'era', 'plot', 'trivia'] as const;
 type QuestionType = typeof QUESTION_TYPES[number];
 
-// ─── Gemini 2.0 Flash call ──────────────────────────────────────────────────
+// ─── Groq API call ──────────────────────────────────────────────────────────
 
-const GEMINI_API_URL =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 interface QuizQuestion {
     question_type: QuestionType;
@@ -59,7 +59,7 @@ interface QuizQuestion {
 async function generateQuizQuestion(
     book: typeof BOOK_POOL[number],
     questionType: QuestionType,
-    geminiKey: string,
+    groqKey: string,
 ): Promise<QuizQuestion | null> {
     const typePromptMap: Record<QuestionType, string> = {
         quote:  `Create a "Guess the book from this quote" question. Include a real or plausible famous quote FROM the book "${book.title}" by ${book.author} in the question. The 4 options should be book titles.`,
@@ -88,33 +88,34 @@ Rules:
 - Keep each option under 80 characters
 - No markdown, no extra keys, pure JSON only`;
 
-    const res = await fetch(`${GEMINI_API_URL}?key=${geminiKey}`, {
+    const res = await fetch(GROQ_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqKey}`,
+        },
         body: JSON.stringify({
-            contents: [{
-                parts: [{ text: prompt }],
-            }],
-            generationConfig: {
-                temperature:      0.9,
-                maxOutputTokens:  512,
-                responseMimeType: 'application/json',   // forces pure JSON output
-            },
+            model: GROQ_MODEL,
+            messages: [
+                { role: 'system', content: 'You are a literary quiz master. Respond ONLY with valid JSON, no markdown fences.' },
+                { role: 'user', content: prompt },
+            ],
+            temperature: 0.9,
+            max_tokens: 512,
+            response_format: { type: 'json_object' },
         }),
     });
 
     if (!res.ok) {
         const err = await res.text();
-        throw new Error(`Gemini error ${res.status}: ${err}`);
+        throw new Error(`Groq error ${res.status}: ${err}`);
     }
 
     const json = await res.json();
+    const raw = json.choices?.[0]?.message?.content?.trim();
+    if (!raw) throw new Error('Empty Groq response');
 
-    // Gemini response shape: candidates[0].content.parts[0].text
-    const raw = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!raw) throw new Error('Empty Gemini response');
-
-    // responseMimeType=application/json guarantees no fences, but strip just in case
+    // Strip markdown fences just in case
     const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     const parsed = JSON.parse(cleaned) as Omit<QuizQuestion, 'question_type'>;
 
@@ -150,11 +151,11 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl     = Deno.env.get('SUPABASE_URL')!;
     const serviceKey      = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const geminiKey       = Deno.env.get('GEMINI_API_KEY');
+    const groqKey         = Deno.env.get('GROQ_API_KEY');
 
-    if (!geminiKey) {
+    if (!groqKey) {
         return new Response(
-            JSON.stringify({ ok: false, error: 'GEMINI_API_KEY not set' }),
+            JSON.stringify({ ok: false, error: 'GROQ_API_KEY not set' }),
             { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
     }
@@ -198,33 +199,23 @@ Deno.serve(async (req: Request) => {
         Math.floor(Math.random() * QUESTION_TYPES.length)
     ];
 
-    console.log(`Generating ${questionType} quiz for "${book.title}" (${todayUTC}) via Gemini 2.0 Flash`);
+    console.log(`Generating ${questionType} quiz for "${book.title}" (${todayUTC})`);
 
-    // ── 4. Generate quiz with Gemini 2.0 Flash ───────────────────────────────
+    // ── 4. Generate quiz via Groq ─────────────────────────────────────────────
     let quiz: QuizQuestion | null = null;
-    let attempt = 0;
-    const MAX_ATTEMPTS = 3;
-
-    while (!quiz && attempt < MAX_ATTEMPTS) {
-        attempt++;
-        try {
-            quiz = await generateQuizQuestion(book, questionType, geminiKey);
-        } catch (err) {
-            console.error(`Attempt ${attempt} failed:`, err);
-            if (attempt >= MAX_ATTEMPTS) {
-                return new Response(
-                    JSON.stringify({ ok: false, error: String(err) }),
-                    { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
-                );
-            }
-            // Brief pause before retry
-            await new Promise(r => setTimeout(r, 1000 * attempt));
-        }
+    try {
+        quiz = await generateQuizQuestion(book, questionType, groqKey);
+    } catch (err) {
+        console.error('Quiz generation failed:', err);
+        return new Response(
+            JSON.stringify({ ok: false, error: String(err) }),
+            { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+        );
     }
 
     if (!quiz) {
         return new Response(
-            JSON.stringify({ ok: false, error: 'Failed to generate quiz after retries' }),
+            JSON.stringify({ ok: false, error: 'Failed to generate quiz' }),
             { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
     }
