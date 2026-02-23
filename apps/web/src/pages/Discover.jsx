@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     TrendingUp, Users, BookOpen, Sparkles, Lightbulb,
     Flame, BarChart3, Clock, Star, ExternalLink, Newspaper,
     RefreshCw, ChevronRight, Zap, Award, Coffee, Globe, Building2,
-    Brain, CheckCircle, XCircle
+    Brain, CheckCircle, XCircle, Search, Wand2, Loader2, X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
-import ActivityFeed from '../components/AcitvityFeed';
-import { getTrendingBooks } from '../services/activityService';
 import { getPublisherUpdates, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 import { getWeeklyTrendingBooks, triggerNYTFetch } from '../services/weeklyTrendingService';
+import { moodSearch } from '../services/moodSearchService';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
@@ -82,8 +81,7 @@ export default function Discover() {
     const [bookFacts, setBookFacts] = useState([]);
     const [factsLoading, setFactsLoading] = useState(true);
     const [generatingFact, setGeneratingFact] = useState(false);
-    const [trendingBooks, setTrendingBooks] = useState([]);
-    const [loadingTrending, setLoadingTrending] = useState(true);
+
     const [publisherUpdates, setPublisherUpdates] = useState([]);
     const [loadingPublisher, setLoadingPublisher] = useState(true);
     const [activePublisher, setActivePublisher] = useState('all');
@@ -105,6 +103,14 @@ export default function Discover() {
     const [generatingQuiz, setGeneratingQuiz]   = useState(false);
     const [quizGenError, setQuizGenError]       = useState(null);
 
+    // Mood Search state
+    const [moodInput, setMoodInput]             = useState('');
+    const [moodSearching, setMoodSearching]     = useState(false);
+    const [moodQuery, setMoodQuery]             = useState('');
+    const [moodResults, setMoodResults]         = useState(null); // { ranked, allResults }
+    const [moodError, setMoodError]             = useState(null);
+    const moodInputRef = useRef(null);
+
     useEffect(() => {
         // Load NYT weekly bestsellers
         (async () => {
@@ -123,13 +129,7 @@ export default function Discover() {
             setFactsLoading(false);
         })();
 
-        // Load trending books based on activity
-        (async () => {
-            setLoadingTrending(true);
-            const { data } = await getTrendingBooks(10);
-            setTrendingBooks(data || []);
-            setLoadingTrending(false);
-        })();
+
 
         // Load publisher updates
         (async () => {
@@ -228,6 +228,45 @@ export default function Discover() {
         }
     };
 
+    const handleMoodSearch = async (e, overrideInput) => {
+        e?.preventDefault();
+        const input = (overrideInput || moodInput).trim();
+        if (!input || moodSearching) return;
+
+        setMoodSearching(true);
+        setMoodError(null);
+        setMoodResults(null);
+        setMoodQuery('');
+
+        try {
+            const { query, allResults, ranked } = await moodSearch(input, { maxResults: 10, topN: 5 });
+            setMoodQuery(query);
+            setMoodResults({ ranked, allResults });
+        } catch (err) {
+            console.error('Mood search error:', err);
+            setMoodError('Something went wrong. Please try again.');
+        } finally {
+            setMoodSearching(false);
+        }
+    };
+
+    const clearMoodSearch = () => {
+        setMoodInput('');
+        setMoodResults(null);
+        setMoodQuery('');
+        setMoodError(null);
+        moodInputRef.current?.focus();
+    };
+
+    const MOOD_SUGGESTIONS = [
+        'Something cozy and comforting',
+        'A dark psychological thriller',
+        'Light romance for the weekend',
+        'Mind-bending sci-fi',
+        'Non-fiction about the universe',
+        'Short stories I can finish quickly',
+    ];
+
     return (
         <div className="space-y-6">
             {/* Hero Section */}
@@ -246,6 +285,186 @@ export default function Discover() {
                 </div>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+            </div>
+
+            {/* ── Mood-Based Book Search ── */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Wand2 className="w-5 h-5 text-pink-400" />
+                    <h2 className="text-xl font-bold text-white">What are you in the mood for?</h2>
+                    <span className="text-xs bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full font-medium">AI Powered</span>
+                </div>
+
+                <form onSubmit={(e) => handleMoodSearch(e)} className="relative">
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
+                            <input
+                                ref={moodInputRef}
+                                type="text"
+                                value={moodInput}
+                                onChange={(e) => setMoodInput(e.target.value)}
+                                placeholder='Try "a cozy mystery for rainy days" or "epic fantasy with strong female lead"...'
+                                className="w-full pl-12 pr-10 py-3.5 bg-surface border border-white/10 rounded-xl text-white placeholder-text-muted text-sm focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 transition-all"
+                            />
+                            {moodInput && (
+                                <button
+                                    type="button"
+                                    onClick={clearMoodSearch}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={!moodInput.trim() || moodSearching}
+                            className={cn(
+                                "flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap",
+                                moodSearching
+                                    ? "bg-pink-500/30 text-pink-200 cursor-not-allowed"
+                                    : moodInput.trim()
+                                        ? "bg-gradient-to-r from-pink-500 to-violet-500 text-white hover:from-pink-600 hover:to-violet-600 shadow-lg shadow-pink-500/20"
+                                        : "bg-white/5 text-text-muted cursor-not-allowed"
+                            )}
+                        >
+                            {moodSearching ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Searching...</>
+                            ) : (
+                                <><Wand2 className="w-4 h-4" /> Find Books</>
+                            )}
+                        </button>
+                    </div>
+                </form>
+
+                {/* Quick mood suggestions */}
+                {!moodResults && !moodSearching && (
+                    <div className="flex flex-wrap gap-2">
+                        {MOOD_SUGGESTIONS.map((suggestion) => (
+                            <button
+                                key={suggestion}
+                                onClick={() => {
+                                    setMoodInput(suggestion);
+                                    handleMoodSearch({ preventDefault: () => {} }, suggestion);
+                                }}
+                                className="px-3 py-1.5 bg-white/5 hover:bg-pink-500/15 text-text-muted hover:text-pink-300 text-xs rounded-full border border-white/10 hover:border-pink-500/30 transition-all"
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Searching animation */}
+                {moodSearching && (
+                    <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
+                        <div className="flex items-center justify-center gap-3 mb-3">
+                            <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                            <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                            <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                        </div>
+                        <p className="text-sm text-text-muted">Understanding your mood and finding the perfect books...</p>
+                    </div>
+                )}
+
+                {/* Error state */}
+                {moodError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-300">
+                        {moodError}
+                    </div>
+                )}
+
+                {/* Results */}
+                {moodResults && (
+                    <div className="space-y-4">
+                        {/* Generated query badge */}
+                        {moodQuery && (
+                            <div className="flex items-center gap-2 text-xs text-text-muted">
+                                <Sparkles className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
+                                <span>AI search query:</span>
+                                <code className="bg-white/5 px-2 py-0.5 rounded text-pink-300 font-mono text-[11px]">{moodQuery}</code>
+                            </div>
+                        )}
+
+                        {/* AI-Ranked Top Picks */}
+                        {moodResults.ranked.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Award className="w-4 h-4 text-amber-400" />
+                                    <h3 className="text-sm font-semibold text-white">
+                                        Top {moodResults.ranked.length} Picks for You
+                                    </h3>
+                                </div>
+                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                                    {moodResults.ranked.map((book, idx) => (
+                                        <a
+                                            key={book.id}
+                                            href={book.infoLink || book.previewLink || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group bg-surface border border-white/5 rounded-2xl p-4 hover:border-pink-500/40 transition-all flex flex-col"
+                                        >
+                                            <div className="relative mb-3">
+                                                {book.thumbnail ? (
+                                                    <img
+                                                        src={book.thumbnail}
+                                                        alt={book.title}
+                                                        className="w-full h-48 object-cover rounded-xl bg-white/5"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-48 bg-gradient-to-br from-pink-500/10 to-violet-500/10 rounded-xl flex items-center justify-center">
+                                                        <BookOpen className="w-10 h-10 text-text-muted opacity-30" />
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-violet-500 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-lg">
+                                                    #{idx + 1}
+                                                </div>
+                                                {book.averageRating && (
+                                                    <div className="absolute top-2 right-2 bg-black/70 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                                        <Star className="w-2.5 h-2.5 fill-amber-400" /> {book.averageRating}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2 group-hover:text-pink-300 transition-colors flex-1">
+                                                {book.title}
+                                            </h3>
+                                            <p className="text-text-muted text-xs mb-2 line-clamp-1">{book.authors}</p>
+                                            {book.aiReason && (
+                                                <p className="text-[11px] text-pink-300/80 bg-pink-500/10 border border-pink-500/20 rounded-lg px-2 py-1.5 line-clamp-2 leading-relaxed">
+                                                    <Wand2 className="w-3 h-3 inline mr-1 -mt-0.5" />
+                                                    {book.aiReason}
+                                                </p>
+                                            )}
+                                            {book.pageCount && (
+                                                <p className="text-[10px] text-text-muted mt-2">{book.pageCount} pages</p>
+                                            )}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* No results */}
+                        {moodResults.ranked.length === 0 && moodResults.allResults.length === 0 && (
+                            <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
+                                <Search className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-40" />
+                                <p className="text-white font-semibold mb-1">No books found</p>
+                                <p className="text-sm text-text-muted">Try rephrasing your mood or being more specific.</p>
+                            </div>
+                        )}
+
+                        {/* Clear button */}
+                        <div className="flex justify-center">
+                            <button
+                                onClick={clearMoodSearch}
+                                className="text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1"
+                            >
+                                <X className="w-3 h-3" /> Clear results & search again
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Book Fact of the Day — AI-generated via Groq */}
@@ -478,53 +697,6 @@ export default function Discover() {
                         </div>
                     );
                 })()}
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6">
-                {/* Trending Books from Activity */}
-                <div>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Flame className="w-5 h-5 text-orange-400" />
-                        <h2 className="text-xl font-bold text-white">Hot This Week</h2>
-                    </div>
-                    <div className="bg-surface border border-white/5 rounded-2xl p-4 space-y-3">
-                        {loadingTrending ? (
-                            <div className="flex items-center justify-center py-8">
-                                <RefreshCw className="w-6 h-6 text-primary animate-spin" />
-                            </div>
-                        ) : trendingBooks.length > 0 ? (
-                            trendingBooks.slice(0, 5).map((book, index) => (
-                                <div key={book.book_id || index} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                        {index + 1}
-                                    </div>
-                                    {book.cover_url && (
-                                        <img src={book.cover_url} alt={book.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
-                                        <p className="text-xs text-text-muted">{book.authors}</p>
-                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-orange-400">
-                                            <TrendingUp size={10} />
-                                            <span>{book.activity_count || book.reader_count || 0} readers this week</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
-                                <TrendingUp size={24} className="text-text-muted opacity-40" />
-                                <p className="text-sm text-text-muted">No trending data yet</p>
-                                <p className="text-xs text-text-muted opacity-60">Community activity will appear here</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Activity Feed */}
-                <div>
-                    <ActivityFeed />
-                </div>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6">
