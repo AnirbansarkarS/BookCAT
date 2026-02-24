@@ -125,16 +125,22 @@ export const deleteBook = async (bookId) => {
 };
 
 /**
- * Log a reading session with proper validation
+ * Log a reading session with proper validation.
+ * @param {string} userId
+ * @param {string} bookId
+ * @param {number} durationSeconds - elapsed time in SECONDS
+ * @param {number} pagesRead
+ * @param {string|null} intent
  */
-export const logReadingSession = async (userId, bookId, durationMinutes, pagesRead = 0, intent = null) => {
+export const logReadingSession = async (userId, bookId, durationSeconds, pagesRead = 0, intent = null) => {
     try {
         if (!userId || !bookId) {
             throw new Error('userId and bookId are required');
         }
 
-        // Ensure duration is a valid positive integer (minimum 1)
-        const validDuration = Math.max(1, Math.floor(Number(durationMinutes) || 0));
+        // Ensure duration is a valid positive integer (minimum 1 second)
+        const validSeconds = Math.max(1, Math.floor(Number(durationSeconds) || 0));
+        const validMinutes = Math.max(1, Math.round(validSeconds / 60));
         
         // Ensure pages is a valid non-negative integer
         const validPages = Math.max(0, Math.floor(Number(pagesRead) || 0));
@@ -142,7 +148,8 @@ export const logReadingSession = async (userId, bookId, durationMinutes, pagesRe
         console.log('📝 Logging reading session:', {
             userId,
             bookId,
-            durationMinutes: validDuration,
+            durationSeconds: validSeconds,
+            durationMinutes: validMinutes,
             pagesRead: validPages,
             intent
         });
@@ -152,9 +159,8 @@ export const logReadingSession = async (userId, bookId, durationMinutes, pagesRe
             .insert([{
                 user_id: userId,
                 book_id: bookId,
-                duration_minutes: validDuration,
+                duration_seconds: validSeconds,
                 pages_read: validPages,
-                intent: intent || null,
                 start_time: new Date().toISOString(),
                 end_time: new Date().toISOString(),
                 created_at: new Date().toISOString(),

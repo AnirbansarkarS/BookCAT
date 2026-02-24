@@ -50,7 +50,7 @@ export default function RealtimeStatsWidget() {
 
             // Today's stats
             const todaySessions = sessions.filter(s => new Date(s.created_at) >= today);
-            let todayMinutes = todaySessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+            let todayMinutes = todaySessions.reduce((sum, s) => sum + Math.floor((s.duration_seconds || 0) / 60), 0);
             let todayPages = todaySessions.reduce((sum, s) => sum + (s.pages_read || 0), 0);
 
             // Add active session if exists
@@ -63,7 +63,7 @@ export default function RealtimeStatsWidget() {
 
             // Week stats
             const weekSessions = sessions.filter(s => new Date(s.created_at) >= weekAgo);
-            const weekMinutes = weekSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+            const weekMinutes = weekSessions.reduce((sum, s) => sum + Math.floor((s.duration_seconds || 0) / 60), 0);
 
             // Streak calculation
             const dates = [...new Set(sessions.map(s =>
