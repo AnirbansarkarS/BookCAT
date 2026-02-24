@@ -51,7 +51,7 @@ export const addBook = async (userId, bookData) => {
 };
 
 /**
- * Update book details — FIXED: no updated_at column
+ * Update book details
  */
 export const updateBookDetails = async (bookId, updates) => {
     try {
@@ -354,5 +354,32 @@ export const updateBookProgress = async (bookId, progress, currentPage = null) =
     } catch (error) {
         console.error('Error updating book progress:', error);
         return { data: null, error };
+    }
+};
+
+/**
+ * Auto-fetch page count from Google Books by title + author.
+ * Returns pageCount (number) or null if not found.
+ */
+export const fetchPageCount = async (title, authors) => {
+    try {
+        if (!title) return null;
+        const authorPart = authors ? `+inauthor:${encodeURIComponent(authors.split(',')[0].trim())}` : '';
+        const query = `intitle:${encodeURIComponent(title)}${authorPart}`;
+        const keyParam = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY
+            ? `&key=${import.meta.env.VITE_GOOGLE_BOOKS_API_KEY}`
+            : '';
+        const res = await fetch(
+            `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3&printType=books${keyParam}`
+        );
+        if (!res.ok) return null;
+
+        const data = await res.json();
+        // Find the first result that has a pageCount
+        const match = (data.items || []).find(i => i.volumeInfo?.pageCount);
+        return match?.volumeInfo?.pageCount || null;
+    } catch (err) {
+        console.error('Error fetching page count:', err);
+        return null;
     }
 };

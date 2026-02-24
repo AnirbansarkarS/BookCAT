@@ -3,7 +3,7 @@ import { BookOpen, CheckCircle, Clock, Plus, Loader2, Tag, SlidersHorizontal, Sa
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
-import { getUserBooks, updateBookDetails, logReadingSession } from '../services/bookService';
+import { getUserBooks, updateBookDetails, logReadingSession, fetchPageCount } from '../services/bookService';
 import AddBookModal from '../components/AddBookModal';
 import ReadingSessionModal from '../components/ReadingSessionModal';
 import { eventBus, EVENTS } from '../utils/eventBus';
@@ -83,8 +83,26 @@ export default function Library() {
         systemTag: book.status ? statusConfig[book.status]?.systemTag : 'want_to_read',
     });
 
+    const [fetchingPages, setFetchingPages] = useState({});
+
     const ensureDraft = (book) => {
         setDrafts(prev => (prev[book.id] ? prev : { ...prev, [book.id]: buildDraft(book) }));
+    };
+
+    // Auto-fetch page count when expanding a book with no total_pages
+    const handleExpandBook = async (book) => {
+        ensureDraft(book);
+        const isExpanded = expandedId === book.id;
+        setExpandedId(isExpanded ? null : book.id);
+
+        if (!isExpanded && !book.total_pages) {
+            setFetchingPages(prev => ({ ...prev, [book.id]: true }));
+            const pages = await fetchPageCount(book.title, book.authors);
+            if (pages) {
+                updateDraft(book.id, { total_pages: String(pages) });
+            }
+            setFetchingPages(prev => ({ ...prev, [book.id]: false }));
+        }
     };
 
     const updateDraft = (bookId, patch) => {
@@ -352,282 +370,306 @@ export default function Library() {
                 </div>
             )}
 
-            {/* Bookshelf Grid - Mobile: 2 columns, Tablet: 3, Desktop: 4-5 */}
-            {!isLoading && filteredBooks.length > 0 && (
-                <div className="relative">
-                    {/* Bookshelf background effect */}
-                    <div className="bookshelf-container">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
-                            {filteredBooks.map((book, index) => {
-                                const StatusIcon = statusConfig[book.status]?.icon || BookOpen;
-                                const draft = drafts[book.id] || buildDraft(book);
-                                const isExpanded = expandedId === book.id;
-                                const isOpening = openingBookId === book.id;
-                                const totalPagesDisplay = book.total_pages || '?';
-                                const computedProgress = book.total_pages
-                                    ? Math.min(100, Math.round(((book.current_page || 0) / book.total_pages) * 100))
-                                    : (book.progress || 0);
-                                const progressValue = Number.isFinite(computedProgress) ? computedProgress : 0;
-                                const parsedMaxPages = parseInt(draft.total_pages);
-                                const maxPages = Number.isFinite(parsedMaxPages) && parsedMaxPages > 0
-                                    ? parsedMaxPages
-                                    : (book.total_pages || 100);
-                                const draftCurrent = Number.isFinite(parseInt(draft.current_page))
-                                    ? parseInt(draft.current_page)
-                                    : (book.current_page || 0);
+            {/* Wooden Bookshelf */}
+            {!isLoading && filteredBooks.length > 0 && (() => {
+                // Group books into shelf rows
+                const BOOKS_PER_SHELF = typeof window !== 'undefined' && window.innerWidth < 640 ? 2
+                    : typeof window !== 'undefined' && window.innerWidth < 768 ? 3
+                    : typeof window !== 'undefined' && window.innerWidth < 1024 ? 4
+                    : typeof window !== 'undefined' && window.innerWidth < 1280 ? 5 : 6;
+                const shelves = [];
+                for (let i = 0; i < filteredBooks.length; i += BOOKS_PER_SHELF) {
+                    shelves.push(filteredBooks.slice(i, i + BOOKS_PER_SHELF));
+                }
 
-                                const systemTag = getSystemTag(book);
-                                const userTags = getUserTags(book);
+                return (
+                    <div className="space-y-0">
+                        {shelves.map((shelfBooks, shelfIdx) => (
+                            <div key={shelfIdx} className="wooden-shelf-wrapper">
+                                {/* Books on this shelf */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-5 px-2 md:px-4 pb-0">
+                                    {shelfBooks.map((book, index) => {
+                                        const StatusIcon = statusConfig[book.status]?.icon || BookOpen;
+                                        const draft = drafts[book.id] || buildDraft(book);
+                                        const isExpanded = expandedId === book.id;
+                                        const isOpening = openingBookId === book.id;
+                                        const totalPagesDisplay = book.total_pages || '?';
+                                        const computedProgress = book.total_pages
+                                            ? Math.min(100, Math.round(((book.current_page || 0) / book.total_pages) * 100))
+                                            : (book.progress || 0);
+                                        const progressValue = Number.isFinite(computedProgress) ? computedProgress : 0;
+                                        const parsedMaxPages = parseInt(draft.total_pages);
+                                        const maxPages = Number.isFinite(parsedMaxPages) && parsedMaxPages > 0
+                                            ? parsedMaxPages
+                                            : (book.total_pages || 100);
+                                        const draftCurrent = Number.isFinite(parseInt(draft.current_page))
+                                            ? parseInt(draft.current_page)
+                                            : (book.current_page || 0);
 
-                                return (
-                                    <div
-                                        key={book.id}
-                                        className={cn(
-                                            "book-spine group relative bg-surface rounded-lg md:rounded-2xl overflow-hidden border border-white/5 transition-all duration-200",
-                                            "hover:shadow-xl md:hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-1 md:hover:-translate-y-2",
-                                            "hover:border-primary/50",
-                                            isOpening ? "scale-105 shadow-2xl shadow-primary/30 z-50" : ""
-                                        )}
-                                        style={{
-                                            transformStyle: 'preserve-3d',
-                                            transition: 'all 0.2s ease-out',
-                                            animationDelay: `${index * 50}ms`
-                                        }}
-                                    >
-                                        {/* Book Cover */}
-                                        <div className="aspect-[2/3] overflow-hidden relative">
-                                            {book.cover_url ? (
-                                                <img
-                                                    src={book.cover_url}
-                                                    alt={book.title}
-                                                    className={cn(
-                                                        "w-full h-full object-cover transition-all duration-500",
-                                                        isOpening ? "scale-110 blur-sm" : "group-hover:scale-105"
-                                                    )}
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
-                                                    <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-text-muted" />
-                                                </div>
-                                            )}
+                                        const systemTag = getSystemTag(book);
+                                        const userTags = getUserTags(book);
+                                        const globalIndex = shelfIdx * BOOKS_PER_SHELF + index;
 
-                                            {/* Progress bar */}
-                                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                                                <div
-                                                    className={cn(
-                                                        "h-full transition-all duration-500",
-                                                        progressValue > 0 ? "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.6)]" : "bg-white/20"
-                                                    )}
-                                                    style={{ width: `${progressValue}%` }}
-                                                />
-                                            </div>
-
-                                            {/* Opening animation */}
-                                            {isOpening && (
-                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center animate-fade-in">
-                                                    <div className="text-center space-y-2 animate-pulse">
-                                                        <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-primary mx-auto" />
-                                                        <p className="text-white font-medium text-xs md:text-sm">Opening...</p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Hover overlay - hidden on mobile */}
-                                            <div className="hidden md:flex absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-col justify-end p-3 lg:p-4">
-                                                <button
-                                                    onClick={() => handleOpenBook(book)}
-                                                    className="w-full py-2 bg-primary text-white font-semibold rounded-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-primary/90 text-xs lg:text-sm flex items-center justify-center gap-2"
-                                                >
-                                                    <Timer size={14} />
-                                                    Start Reading
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Book Info */}
-                                        <div className="p-2 md:p-3 lg:p-4 space-y-2 md:space-y-3">
-                                            {/* System Tag - smaller on mobile */}
-                                            {systemTag && SYSTEM_TAGS[systemTag] && (
-                                                <div className={cn(
-                                                    "flex items-center gap-1 w-fit px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium",
-                                                    SYSTEM_TAGS[systemTag].color
-                                                )}>
-                                                    {React.createElement(SYSTEM_TAGS[systemTag].icon, { size: 8, className: "md:w-2.5 md:h-2.5" })}
-                                                    <span className="hidden sm:inline">{SYSTEM_TAGS[systemTag].label}</span>
-                                                </div>
-                                            )}
-
-                                            {/* Title & Author */}
-                                            <div className="flex items-start justify-between gap-1 md:gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold text-white leading-tight truncate text-xs md:text-sm" title={book.title}>
-                                                        {book.title}
-                                                    </h3>
-                                                    <p className="text-[10px] md:text-xs text-text-muted truncate">{book.authors || 'Unknown'}</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        ensureDraft(book);
-                                                        setExpandedId(isExpanded ? null : book.id);
-                                                    }}
-                                                    className={cn(
-                                                        "flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-1 rounded-lg text-[10px] md:text-xs font-medium transition-all flex-shrink-0",
-                                                        isExpanded ? "bg-primary/20 text-primary" : "bg-white/5 text-text-secondary hover:text-white hover:bg-white/10"
-                                                    )}
-                                                >
-                                                    <SlidersHorizontal size={10} className="md:w-3 md:h-3" />
-                                                    <span className="hidden sm:inline">Edit</span>
-                                                </button>
-                                            </div>
-
-                                            {/* Tags - compact on mobile */}
-                                            <div className="flex items-center gap-1 text-[10px] md:text-xs text-text-muted">
-                                                <Tag size={10} className="md:w-3 md:h-3 flex-shrink-0" />
-                                                {userTags.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {userTags.slice(0, 2).map(tag => (
-                                                            <span key={tag} className="px-1.5 py-0.5 bg-white/5 rounded-full text-[9px] md:text-[10px] text-text-secondary truncate max-w-[60px]">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {userTags.length > 2 && (
-                                                            <span className="text-[9px] md:text-[10px] text-text-muted">+{userTags.length - 2}</span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-text-muted text-[9px] md:text-[10px]">No tags</span>
+                                        return (
+                                            <div
+                                                key={book.id}
+                                                className={cn(
+                                                    "book-on-shelf group relative rounded-t-lg md:rounded-t-xl overflow-hidden transition-all duration-300",
+                                                    "hover:shadow-xl md:hover:shadow-2xl hover:shadow-amber-900/30",
+                                                    isOpening ? "scale-105 shadow-2xl shadow-primary/30 z-50" : "",
+                                                    isExpanded ? "z-40" : ""
                                                 )}
-                                            </div>
-
-                                            {/* Progress */}
-                                            <div className="space-y-1 md:space-y-2">
-                                                <div className="flex justify-between text-[10px] md:text-xs text-text-muted">
-                                                    <span>{book.current_page || 0}/{totalPagesDisplay}</span>
-                                                    <span className="font-semibold">{progressValue}%</span>
-                                                </div>
-                                                <div className="w-full h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={cn(
-                                                            "h-full transition-all duration-700 ease-out",
-                                                            progressValue === 100 ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-primary"
-                                                        )}
-                                                        style={{ width: `${progressValue}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Action button - mobile */}
-                                            <button
-                                                onClick={() => handleOpenBook(book)}
-                                                className="w-full md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold transition-colors"
+                                                style={{
+                                                    transformStyle: 'preserve-3d',
+                                                    animationDelay: `${globalIndex * 60}ms`
+                                                }}
                                             >
-                                                <Timer size={12} />
-                                                Start
-                                            </button>
-
-                                            {/* Expanded Edit Section */}
-                                            {isExpanded && (
-                                                <div className="mt-2 border-t border-white/10 pt-2 md:pt-3 space-y-2 md:space-y-3">
-                                                    <div className="grid grid-cols-2 gap-2 md:gap-3">
-                                                        <div className="space-y-1">
-                                                            <label className="text-[10px] md:text-xs font-medium text-text-secondary">Status</label>
-                                                            <select
-                                                                value={draft.status}
-                                                                onChange={(e) => {
-                                                                    const newStatus = e.target.value;
-                                                                    const newSystemTag = statusConfig[newStatus]?.systemTag;
-                                                                    updateDraft(book.id, {
-                                                                        status: newStatus,
-                                                                        systemTag: newSystemTag
-                                                                    });
-                                                                }}
-                                                                className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
-                                                            >
-                                                                {['Reading', 'Want to Read', 'Completed', 'Re-reading', 'Abandoned'].map(status => (
-                                                                    <option key={status} value={status} className="bg-background text-white">
-                                                                        {status}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-[10px] md:text-xs font-medium text-text-secondary">Total Pages</label>
-                                                            <input
-                                                                type="number"
-                                                                value={draft.total_pages}
-                                                                onChange={(e) => updateDraft(book.id, { total_pages: e.target.value })}
-                                                                placeholder="320"
-                                                                className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-1 md:space-y-2">
-                                                        <label className="text-[10px] md:text-xs font-medium text-text-secondary">Pages Read</label>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max={maxPages}
-                                                            value={draftCurrent}
-                                                            onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
-                                                            className="w-full accent-primary"
-                                                        />
-                                                        <div className="flex items-center gap-2">
-                                                            <input
-                                                                type="number"
-                                                                value={draft.current_page}
-                                                                onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
-                                                                className="w-12 md:w-16 px-1 md:px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] md:text-xs text-center focus:outline-none focus:border-primary/50"
-                                                            />
-                                                            <span className="text-[10px] md:text-xs text-text-muted">/ {maxPages}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] md:text-xs font-medium text-text-secondary">Tags</label>
-                                                        <input
-                                                            type="text"
-                                                            value={draft.tagsInput}
-                                                            onChange={(e) => updateDraft(book.id, { tagsInput: e.target.value })}
-                                                            placeholder="exam, study..."
-                                                            className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => handleSaveDetails(book)}
-                                                            disabled={savingId === book.id}
+                                                {/* Book Cover */}
+                                                <div className="aspect-[2/3] overflow-hidden relative rounded-t-lg shadow-md">
+                                                    {book.cover_url ? (
+                                                        <img
+                                                            src={book.cover_url}
+                                                            alt={book.title}
                                                             className={cn(
-                                                                "flex-1 inline-flex items-center justify-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-semibold transition-all",
-                                                                savingId === book.id
-                                                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
-                                                                    : "bg-primary text-white hover:bg-primary/90"
+                                                                "w-full h-full object-cover transition-all duration-500",
+                                                                isOpening ? "scale-110 blur-sm" : "group-hover:scale-105"
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-amber-800/20 flex items-center justify-center">
+                                                            <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-amber-200/30" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Progress bar */}
+                                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                                                        <div
+                                                            className={cn(
+                                                                "h-full transition-all duration-500",
+                                                                progressValue > 0 ? "bg-primary shadow-[0_0_6px_rgba(var(--primary-rgb),0.6)]" : "bg-white/20"
+                                                            )}
+                                                            style={{ width: `${progressValue}%` }}
+                                                        />
+                                                    </div>
+
+                                                    {/* Opening animation */}
+                                                    {isOpening && (
+                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center animate-fade-in">
+                                                            <div className="text-center space-y-2 animate-pulse">
+                                                                <BookOpen className="w-8 h-8 md:w-12 md:h-12 text-primary mx-auto" />
+                                                                <p className="text-white font-medium text-xs md:text-sm">Opening...</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Hover overlay */}
+                                                    <div className="hidden md:flex absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-col justify-end p-3 lg:p-4">
+                                                        <button
+                                                            onClick={() => handleOpenBook(book)}
+                                                            className="w-full py-2 bg-primary text-white font-semibold rounded-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-primary/90 text-xs lg:text-sm flex items-center justify-center gap-2"
+                                                        >
+                                                            <Timer size={14} />
+                                                            Start Reading
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Book spine shadow on left edge */}
+                                                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-black/30 to-transparent pointer-events-none" />
+                                                </div>
+
+                                                {/* Book Info - below cover */}
+                                                <div className="bg-surface/90 backdrop-blur-sm p-2 md:p-3 space-y-1.5 md:space-y-2 border-x border-white/5">
+                                                    {/* System Tag */}
+                                                    {systemTag && SYSTEM_TAGS[systemTag] && (
+                                                        <div className={cn(
+                                                            "flex items-center gap-1 w-fit px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium",
+                                                            SYSTEM_TAGS[systemTag].color
+                                                        )}>
+                                                            {React.createElement(SYSTEM_TAGS[systemTag].icon, { size: 8, className: "md:w-2.5 md:h-2.5" })}
+                                                            <span className="hidden sm:inline">{SYSTEM_TAGS[systemTag].label}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Title & Author */}
+                                                    <div className="flex items-start justify-between gap-1 md:gap-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="font-semibold text-white leading-tight truncate text-xs md:text-sm" title={book.title}>
+                                                                {book.title}
+                                                            </h3>
+                                                            <p className="text-[10px] md:text-xs text-text-muted truncate">{book.authors || 'Unknown'}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleExpandBook(book)}
+                                                            className={cn(
+                                                                "flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-1 rounded-lg text-[10px] md:text-xs font-medium transition-all flex-shrink-0",
+                                                                isExpanded ? "bg-primary/20 text-primary" : "bg-white/5 text-text-secondary hover:text-white hover:bg-white/10"
                                                             )}
                                                         >
-                                                            <Save size={12} />
-                                                            Save
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setDrafts(prev => ({ ...prev, [book.id]: buildDraft(book) }));
-                                                                setExpandedId(null);
-                                                            }}
-                                                            className="px-2 md:px-3 py-1.5 md:py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] md:text-xs font-medium transition-colors"
-                                                        >
-                                                            Cancel
+                                                            <SlidersHorizontal size={10} className="md:w-3 md:h-3" />
+                                                            <span className="hidden sm:inline">Edit</span>
                                                         </button>
                                                     </div>
+
+                                                    {/* Tags */}
+                                                    <div className="flex items-center gap-1 text-[10px] md:text-xs text-text-muted">
+                                                        <Tag size={10} className="md:w-3 md:h-3 flex-shrink-0" />
+                                                        {userTags.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {userTags.slice(0, 2).map(tag => (
+                                                                    <span key={tag} className="px-1.5 py-0.5 bg-white/5 rounded-full text-[9px] md:text-[10px] text-text-secondary truncate max-w-[60px]">
+                                                                        {tag}
+                                                                    </span>
+                                                                ))}
+                                                                {userTags.length > 2 && (
+                                                                    <span className="text-[9px] md:text-[10px] text-text-muted">+{userTags.length - 2}</span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-text-muted text-[9px] md:text-[10px]">No tags</span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Progress */}
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between text-[10px] md:text-xs text-text-muted">
+                                                            <span>{book.current_page || 0}/{totalPagesDisplay}</span>
+                                                            <span className="font-semibold">{progressValue}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={cn(
+                                                                    "h-full transition-all duration-700 ease-out",
+                                                                    progressValue === 100 ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-primary"
+                                                                )}
+                                                                style={{ width: `${progressValue}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Mobile start reading */}
+                                                    <button
+                                                        onClick={() => handleOpenBook(book)}
+                                                        className="w-full md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold transition-colors"
+                                                    >
+                                                        <Timer size={12} />
+                                                        Start
+                                                    </button>
+
+                                                    {/* Expanded Edit Section */}
+                                                    {isExpanded && (
+                                                        <div className="mt-2 border-t border-white/10 pt-2 md:pt-3 space-y-2 md:space-y-3">
+                                                            <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] md:text-xs font-medium text-text-secondary">Status</label>
+                                                                    <select
+                                                                        value={draft.status}
+                                                                        onChange={(e) => {
+                                                                            const newStatus = e.target.value;
+                                                                            const newSystemTag = statusConfig[newStatus]?.systemTag;
+                                                                            updateDraft(book.id, {
+                                                                                status: newStatus,
+                                                                                systemTag: newSystemTag
+                                                                            });
+                                                                        }}
+                                                                        className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                                    >
+                                                                        {['Reading', 'Want to Read', 'Completed', 'Re-reading', 'Abandoned'].map(status => (
+                                                                            <option key={status} value={status} className="bg-background text-white">
+                                                                                {status}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[10px] md:text-xs font-medium text-text-secondary">Total Pages</label>
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="number"
+                                                                            value={draft.total_pages}
+                                                                            onChange={(e) => updateDraft(book.id, { total_pages: e.target.value })}
+                                                                            placeholder={fetchingPages[book.id] ? 'Fetching...' : '320'}
+                                                                            className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                                        />
+                                                                        {fetchingPages[book.id] && (
+                                                                            <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-primary animate-spin" />
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-1 md:space-y-2">
+                                                                <label className="text-[10px] md:text-xs font-medium text-text-secondary">Pages Read</label>
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max={maxPages}
+                                                                    value={draftCurrent}
+                                                                    onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
+                                                                    className="w-full accent-primary"
+                                                                />
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={draft.current_page}
+                                                                        onChange={(e) => updateDraft(book.id, { current_page: e.target.value })}
+                                                                        className="w-12 md:w-16 px-1 md:px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] md:text-xs text-center focus:outline-none focus:border-primary/50"
+                                                                    />
+                                                                    <span className="text-[10px] md:text-xs text-text-muted">/ {maxPages}</span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] md:text-xs font-medium text-text-secondary">Tags</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={draft.tagsInput}
+                                                                    onChange={(e) => updateDraft(book.id, { tagsInput: e.target.value })}
+                                                                    placeholder="exam, study..."
+                                                                    className="w-full px-2 py-1.5 md:py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] md:text-xs text-white focus:outline-none focus:border-primary/50"
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleSaveDetails(book)}
+                                                                    disabled={savingId === book.id}
+                                                                    className={cn(
+                                                                        "flex-1 inline-flex items-center justify-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-semibold transition-all",
+                                                                        savingId === book.id
+                                                                            ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                                                            : "bg-primary text-white hover:bg-primary/90"
+                                                                    )}
+                                                                >
+                                                                    <Save size={12} />
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setDrafts(prev => ({ ...prev, [book.id]: buildDraft(book) }));
+                                                                        setExpandedId(null);
+                                                                    }}
+                                                                    className="px-2 md:px-3 py-1.5 md:py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] md:text-xs font-medium transition-colors"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Wooden Shelf */}
+                                <div className="wooden-shelf" />
+                                {/* Shelf bracket shadows */}
+                                <div className="shelf-shadow" />
+                            </div>
+                        ))}
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* No results */}
             {!isLoading && books.length > 0 && filteredBooks.length === 0 && (
@@ -709,36 +751,142 @@ export default function Library() {
                     from { opacity: 0; transform: scale(0.9); }
                     to { opacity: 1; transform: scale(1); }
                 }
-                @keyframes slide-up {
-                    from { 
+                @keyframes slide-up-book {
+                    from {
                         opacity: 0;
-                        transform: translateY(20px);
+                        transform: translateY(30px) scale(0.95);
                     }
-                    to { 
+                    to {
                         opacity: 1;
-                        transform: translateY(0);
+                        transform: translateY(0) scale(1);
                     }
                 }
                 .animate-fade-in { animation: fade-in 0.3s ease-out; }
                 .animate-scale-in { animation: scale-in 0.3s ease-out; }
-                .book-spine {
-                    animation: slide-up 0.4s ease-out both;
+
+                /* ── Wooden Shelf Styles ── */
+                .wooden-shelf-wrapper {
+                    position: relative;
+                    margin-bottom: 8px;
                 }
-                .bookshelf-container::before {
+
+                .wooden-shelf {
+                    height: 18px;
+                    background: linear-gradient(
+                        180deg,
+                        #8B6914 0%,
+                        #A0752E 15%,
+                        #6B4E0A 50%,
+                        #5C3D08 70%,
+                        #4A2F06 100%
+                    );
+                    border-radius: 0 0 6px 6px;
+                    position: relative;
+                    box-shadow:
+                        0 4px 12px rgba(0,0,0,0.5),
+                        0 2px 4px rgba(0,0,0,0.3),
+                        inset 0 1px 0 rgba(255,255,255,0.15),
+                        inset 0 -2px 4px rgba(0,0,0,0.3);
+                    z-index: 5;
+                }
+
+                /* Wood grain texture */
+                .wooden-shelf::before {
                     content: '';
                     position: absolute;
-                    top: 0;
+                    inset: 0;
+                    border-radius: inherit;
+                    background:
+                        repeating-linear-gradient(
+                            90deg,
+                            transparent,
+                            rgba(255,200,100,0.03) 2px,
+                            transparent 4px
+                        ),
+                        repeating-linear-gradient(
+                            90deg,
+                            transparent,
+                            rgba(0,0,0,0.04) 8px,
+                            transparent 16px
+                        );
+                }
+
+                /* Front lip of shelf */
+                .wooden-shelf::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -4px;
                     left: 0;
                     right: 0;
-                    height: 2px;
-                    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.2), transparent);
-                    display: none;
+                    height: 5px;
+                    background: linear-gradient(
+                        180deg,
+                        #5C3D08 0%,
+                        #3D2805 100%
+                    );
+                    border-radius: 0 0 4px 4px;
+                    box-shadow:
+                        0 3px 8px rgba(0,0,0,0.4),
+                        inset 0 1px 0 rgba(255,255,255,0.1);
                 }
+
+                /* Shadow under shelf */
+                .shelf-shadow {
+                    height: 12px;
+                    background: linear-gradient(
+                        180deg,
+                        rgba(0,0,0,0.25) 0%,
+                        transparent 100%
+                    );
+                    margin-top: 4px;
+                    border-radius: 50%;
+                    margin-left: 16px;
+                    margin-right: 16px;
+                }
+
                 @media (min-width: 768px) {
-                    .bookshelf-container::before {
-                        display: block;
+                    .wooden-shelf {
+                        height: 22px;
+                    }
+                    .wooden-shelf-wrapper {
+                        margin-bottom: 12px;
                     }
                 }
+
+                /* Book hover lift off shelf */
+                .book-on-shelf {
+                    animation: slide-up-book 0.5s ease-out both;
+                    transform-origin: bottom center;
+                    position: relative;
+                    z-index: 1;
+                }
+                .book-on-shelf:hover {
+                    transform: translateY(-8px) scale(1.02);
+                    z-index: 10;
+                }
+                @media (min-width: 768px) {
+                    .book-on-shelf:hover {
+                        transform: translateY(-14px) scale(1.03);
+                    }
+                }
+
+                /* Subtle book shadow sitting on shelf */
+                .book-on-shelf::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -3px;
+                    left: 10%;
+                    right: 10%;
+                    height: 6px;
+                    background: radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, transparent 70%);
+                    border-radius: 50%;
+                    pointer-events: none;
+                    transition: opacity 0.3s;
+                }
+                .book-on-shelf:hover::after {
+                    opacity: 0.2;
+                }
+
                 .scrollbar-hide::-webkit-scrollbar {
                     display: none;
                 }
