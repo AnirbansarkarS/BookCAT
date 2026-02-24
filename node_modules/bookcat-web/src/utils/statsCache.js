@@ -111,15 +111,14 @@ export const endReadingSession = async (userId) => {
     const durationMinutes = Math.max(1, session.durationMinutes);
 
     try {
+        const elapsedSec = session.elapsedSeconds || (durationMinutes * 60) || 60;
         const { data } = await supabase.from('reading_sessions').insert([{
             user_id: userId,
             book_id: session.bookId,
-            duration_minutes: durationMinutes,
+            duration_seconds: elapsedSec,
             pages_read: 0,
             start_time: new Date(session.startTime).toISOString(),
             end_time: new Date().toISOString(),
-            elapsed_seconds: session.elapsedSeconds,
-            session_data: session,
         }]).select().single();
 
         await supabase.from('active_sessions')

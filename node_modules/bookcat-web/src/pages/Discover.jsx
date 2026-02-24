@@ -1,45 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     TrendingUp, Users, BookOpen, Sparkles, Lightbulb,
-    Flame, BarChart3, Clock, Star, ExternalLink, Newspaper,
-    RefreshCw, ChevronRight, Zap, Award, Coffee, Globe, Building2,
+    Flame, BarChart3, Clock, Star, ExternalLink,
+    RefreshCw, ChevronRight, Zap, Award, Coffee, Globe,
     Brain, CheckCircle, XCircle, Search, Wand2, Loader2, X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
-import { getPublisherUpdates, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
+import { getActiveReaders, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 import { getWeeklyTrendingBooks, triggerNYTFetch } from '../services/weeklyTrendingService';
 import { moodSearch } from '../services/moodSearchService';
+import { getTodayHotTakes, triggerHotTakesGeneration, voteOnHotTake, getUserVotes } from '../services/hotTakesService';
+import { supabase } from '../lib/supabase';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK DATA (Replace with real API calls)
 // ═══════════════════════════════════════════════════════════
 
 // TRENDING_BOOKS static mock removed — replaced by live NYT bestsellers
-
-const ACTIVE_READERS = [
-    { id: 1, name: 'Sarah Chen', avatar: null, currentBook: 'Atomic Habits', progress: 67, readingTime: '2h today' },
-    { id: 2, name: 'Marcus Lee', avatar: null, currentBook: 'Project Hail Mary', progress: 89, readingTime: '45m today' },
-    { id: 3, name: 'Emma Wilson', avatar: null, currentBook: 'The Midnight Library', progress: 34, readingTime: '1h 20m today' },
-    { id: 4, name: 'David Park', avatar: null, currentBook: 'Dune', progress: 52, readingTime: '3h today' },
-];
-
-const NEW_RELEASES = [
-    { id: 1, title: 'Holly', author: 'Stephen King', cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1674418461i/65916344.jpg', releaseDate: '2024-02-15' },
-    { id: 2, title: 'The Woman in Me', author: 'Britney Spears', cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1689342806i/123420946.jpg', releaseDate: '2024-02-10' },
-    { id: 3, title: 'The Heaven & Earth Grocery Store', author: 'James McBride', cover: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1670520732i/65213659.jpg', releaseDate: '2024-02-08' },
-];
-
-// FUN_FACTS removed — replaced by AI-generated daily_book_facts from Groq
-
-const HOT_TAKES = [
-    { id: 1, text: "E-readers are better than physical books for the environment", agree: 67, disagree: 33, author: 'BookLover23' },
-    { id: 2, text: "You should finish every book you start, no matter what", agree: 42, disagree: 58, author: 'ReadingRebel' },
-    { id: 3, text: "Audio books are just as legitimate as reading", agree: 78, disagree: 22, author: 'AudioFan99' },
-    { id: 4, text: "Spoilers actually enhance the reading experience", agree: 23, disagree: 77, author: 'SpoilerKing' },
-];
 
 const GENRE_TRENDS = [
     { genre: 'Fantasy', percentage: 28, change: '+5%', color: 'from-purple-500 to-pink-500' },
@@ -64,17 +44,8 @@ const QUIZ_TYPE_META = {
     trivia: { label: 'Literary Trivia', color: 'from-cyan-500 to-sky-600'      },
 };
 
-// Publisher brand colours for variety
-const PUBLISHER_COLORS = {
-    penguin:         'from-orange-500 to-red-600',
-    harpercollins:   'from-blue-500 to-indigo-600',
-    hachette:        'from-emerald-500 to-teal-600',
-    simonschuster:   'from-violet-500 to-purple-600',
-    macmillan:       'from-cyan-500 to-blue-600',
-    tor:             'from-amber-500 to-orange-600',
-    bookpage:        'from-pink-500 to-rose-600',
-    publishersweekly:'from-slate-500 to-gray-600',
-};
+// Publisher brand colours for variety — kept only for reference
+// (Publisher section removed)
 
 export default function Discover() {
     const { user } = useAuth();
@@ -82,10 +53,15 @@ export default function Discover() {
     const [factsLoading, setFactsLoading] = useState(true);
     const [generatingFact, setGeneratingFact] = useState(false);
 
-    const [publisherUpdates, setPublisherUpdates] = useState([]);
-    const [loadingPublisher, setLoadingPublisher] = useState(true);
-    const [activePublisher, setActivePublisher] = useState('all');
-    const [refreshing, setRefreshing] = useState(false);
+    // Hot Takes state (Groq-powered, realtime daily)
+    const [hotTakes, setHotTakes] = useState([]);
+    const [hotTakesLoading, setHotTakesLoading] = useState(true);
+    const [generatingTakes, setGeneratingTakes] = useState(false);
+    const [userVotes, setUserVotes] = useState({});
+
+    // Active Readers state (realtime from Supabase)
+    const [activeReaders, setActiveReaders] = useState([]);
+    const [readersLoading, setReadersLoading] = useState(true);
 
     // NYT Bestsellers state
     const [nytBooks, setNytBooks]           = useState([]);
@@ -129,15 +105,46 @@ export default function Discover() {
             setFactsLoading(false);
         })();
 
-
-
-        // Load publisher updates
+        // Load Groq-powered hot takes
         (async () => {
-            setLoadingPublisher(true);
-            const data = await getPublisherUpdates(24);
-            setPublisherUpdates(data);
-            setLoadingPublisher(false);
+            setHotTakesLoading(true);
+            const takes = await getTodayHotTakes();
+            setHotTakes(takes);
+            setHotTakesLoading(false);
+
+            // Load user's votes
+            if (user) {
+                const votes = await getUserVotes(user.id);
+                setUserVotes(votes);
+            }
         })();
+
+        // Load active readers (realtime)
+        (async () => {
+            setReadersLoading(true);
+            const readers = await getActiveReaders(8);
+            setActiveReaders(readers);
+            setReadersLoading(false);
+        })();
+
+        // Subscribe to realtime reading_sessions for live active readers
+        const channel = supabase
+            .channel('active-readers-realtime')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'reading_sessions',
+            }, async () => {
+                const readers = await getActiveReaders(8);
+                setActiveReaders(readers);
+            })
+            .subscribe();
+
+        // Refresh active readers every 60 seconds
+        const readersInterval = setInterval(async () => {
+            const readers = await getActiveReaders(8);
+            setActiveReaders(readers);
+        }, 60000);
 
         // Load today's quiz
         (async () => {
@@ -155,13 +162,41 @@ export default function Discover() {
                 }
             }
         })();
+
+        return () => {
+            supabase.removeChannel(channel);
+            clearInterval(readersInterval);
+        };
     }, [user]);
 
-    const handleRefreshPublisher = async () => {
-        setRefreshing(true);
-        const data = await getPublisherUpdates(24);
-        setPublisherUpdates(data);
-        setRefreshing(false);
+    const handleGenerateHotTakes = async () => {
+        if (generatingTakes) return;
+        setGeneratingTakes(true);
+        try {
+            const result = await triggerHotTakesGeneration();
+            if (result.success) {
+                const takes = await getTodayHotTakes();
+                setHotTakes(takes);
+            }
+        } catch (err) {
+            console.error('Error generating hot takes:', err);
+        } finally {
+            setGeneratingTakes(false);
+        }
+    };
+
+    const handleVote = async (hotTakeId, vote) => {
+        if (!user) return;
+        // Optimistic update
+        setUserVotes(prev => ({ ...prev, [hotTakeId]: vote }));
+        const result = await voteOnHotTake(user.id, hotTakeId, vote);
+        if (result.success) {
+            setHotTakes(prev => prev.map(t =>
+                t.id === hotTakeId
+                    ? { ...t, agree_count: result.agreeCount, disagree_count: result.disagreeCount }
+                    : t
+            ));
+        }
     };
 
     const handleGenerateQuiz = async () => {
@@ -189,13 +224,6 @@ export default function Discover() {
         setQuizRevealed(true);
         setQuizSubmitting(false);
     };
-
-    const filteredPublisher = activePublisher === 'all'
-        ? publisherUpdates
-        : publisherUpdates.filter(u => u.publisher_slug === activePublisher);
-
-    // Unique publishers in the loaded data
-    const loadedPublishers = [...new Set(publisherUpdates.map(u => u.publisher_slug))];
 
     const handleRefreshNYT = async () => {
         if (refreshingNYT) return;
@@ -699,60 +727,87 @@ export default function Discover() {
                 })()}
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
-                {/* Active Readers */}
-                <div>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Users className="w-5 h-5 text-sky-400" />
-                        <h2 className="text-xl font-bold text-white">Active Readers</h2>
-                    </div>
-                    <div className="bg-surface border border-white/5 rounded-2xl p-4 space-y-3">
-                        {ACTIVE_READERS.map(reader => (
-                            <div key={reader.id} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                    {reader.name[0]}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-white text-sm">{reader.name}</p>
-                                    <p className="text-xs text-text-muted truncate">{reader.currentBook}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-primary to-violet-500 rounded-full" style={{ width: `${reader.progress}%` }} />
-                                        </div>
-                                        <span className="text-[10px] text-primary font-semibold">{reader.progress}%</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 text-[10px] text-text-muted flex-shrink-0">
-                                    <Clock size={10} />
-                                    {reader.readingTime}
-                                </div>
-                            </div>
-                        ))}
+            {/* Active Readers — Realtime */}
+            <div>
+                <div className="flex items-center gap-2 mb-4">
+                    <Users className="w-5 h-5 text-sky-400" />
+                    <h2 className="text-xl font-bold text-white">Active Readers</h2>
+                    <div className="flex items-center gap-1.5 ml-2">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        <span className="text-xs text-emerald-400 font-medium">Live</span>
                     </div>
                 </div>
 
-                {/* New Releases */}
-                <div>
-                    <div className="flex items-center gap-2 mb-4">
-                        <Zap className="w-5 h-5 text-violet-400" />
-                        <h2 className="text-xl font-bold text-white">New Releases</h2>
-                    </div>
-                    <div className="bg-surface border border-white/5 rounded-2xl p-4 space-y-3">
-                        {NEW_RELEASES.map(book => (
-                            <div key={book.id} className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl transition-colors cursor-pointer">
-                                <img src={book.cover} alt={book.title} className="w-12 h-16 object-cover rounded-lg flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-white text-sm line-clamp-1">{book.title}</p>
-                                    <p className="text-xs text-text-muted">{book.author}</p>
-                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-violet-400">
-                                        <Sparkles size={10} />
-                                        Released {new Date(book.releaseDate).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                {readersLoading ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[1,2,3,4].map(i => (
+                            <div key={i} className="bg-surface/50 border border-white/5 rounded-2xl p-4 animate-pulse">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white/10" />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-3 bg-white/10 rounded w-2/3" />
+                                        <div className="h-2 bg-white/10 rounded w-1/2" />
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
+                ) : activeReaders.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {activeReaders.map((reader, idx) => {
+                            const totalMin = Math.floor((reader.total_today_seconds || 0) / 60);
+                            const hours = Math.floor(totalMin / 60);
+                            const mins = totalMin % 60;
+                            const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                            const initial = (reader.username || '?')[0].toUpperCase();
+                            const colors = [
+                                'from-primary to-violet-600',
+                                'from-emerald-500 to-teal-600',
+                                'from-pink-500 to-rose-600',
+                                'from-amber-500 to-orange-600',
+                                'from-cyan-500 to-blue-600',
+                                'from-red-500 to-pink-600',
+                                'from-indigo-500 to-purple-600',
+                                'from-lime-500 to-green-600',
+                            ];
+                            return (
+                                <div key={reader.user_id + '-' + idx} className="bg-surface border border-white/5 rounded-2xl p-4 hover:border-sky-500/30 transition-all">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        {reader.avatar_url ? (
+                                            <img src={reader.avatar_url} alt={reader.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                        ) : (
+                                            <div className={cn("w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm flex-shrink-0", colors[idx % colors.length])}>
+                                                {initial}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-semibold text-white text-sm truncate">{reader.username}</p>
+                                            <div className="flex items-center gap-1 text-[10px] text-text-muted">
+                                                <Clock size={10} />
+                                                {timeStr} today
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-text-muted truncate mb-2">📖 {reader.book_title}</p>
+                                    {reader.book_progress > 0 && (
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                <div className="h-full bg-gradient-to-r from-sky-400 to-primary rounded-full transition-all" style={{ width: `${reader.book_progress}%` }} />
+                                            </div>
+                                            <span className="text-[10px] text-sky-400 font-semibold">{reader.book_progress}%</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
+                        <Users className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-40" />
+                        <p className="text-white font-semibold mb-1">No active readers right now</p>
+                        <p className="text-sm text-text-muted">Start a reading session to appear here!</p>
+                    </div>
+                )}
             </div>
 
             {/* ── Daily Quiz Card ── */}
@@ -870,183 +925,134 @@ export default function Discover() {
                 )}
             </div>
 
-            {/* Publisher & Industry News */}
+            {/* ── Hot Takes — Groq AI-powered daily debates ── */}
             <div>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        <Newspaper className="w-5 h-5 text-sky-400" />
-                        <h2 className="text-xl font-bold text-white">Publisher & Industry News</h2>
+                        <Flame className="w-5 h-5 text-orange-400" />
+                        <h2 className="text-xl font-bold text-white">Hot Takes</h2>
+                        <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full font-medium">AI Daily</span>
                     </div>
-                    <button
-                        onClick={handleRefreshPublisher}
-                        disabled={refreshing || loadingPublisher}
-                        className="flex items-center gap-1 text-sm text-sky-400 hover:text-sky-300 transition-colors disabled:opacity-50"
-                    >
-                        <RefreshCw className={cn('w-4 h-4', (refreshing || loadingPublisher) && 'animate-spin')} />
-                        Refresh
-                    </button>
-                </div>
-
-                {/* Publisher filter pills */}
-                {!loadingPublisher && loadedPublishers.length > 0 && (
-                    <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1">
+                    {hotTakes.length === 0 && !hotTakesLoading && (
                         <button
-                            onClick={() => setActivePublisher('all')}
+                            onClick={handleGenerateHotTakes}
+                            disabled={generatingTakes}
                             className={cn(
-                                'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
-                                activePublisher === 'all'
-                                    ? 'bg-sky-500 text-white'
-                                    : 'bg-white/5 text-text-muted hover:bg-white/10 hover:text-white'
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                generatingTakes
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
                             )}
                         >
-                            All Sources
+                            {generatingTakes ? (
+                                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Generating...</>
+                            ) : (
+                                <><Sparkles className="w-3.5 h-3.5" /> Generate Takes</>
+                            )}
                         </button>
-                        {loadedPublishers.map(slug => {
-                            const sample = publisherUpdates.find(u => u.publisher_slug === slug);
-                            return (
-                                <button
-                                    key={slug}
-                                    onClick={() => setActivePublisher(slug)}
-                                    className={cn(
-                                        'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap',
-                                        activePublisher === slug
-                                            ? 'bg-sky-500 text-white'
-                                            : 'bg-white/5 text-text-muted hover:bg-white/10 hover:text-white'
-                                    )}
-                                >
-                                    {sample?.publisher || slug}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
+                    )}
+                </div>
 
-                {loadingPublisher ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-surface border border-white/5 rounded-2xl overflow-hidden animate-pulse">
-                                <div className="w-full h-36 bg-white/5" />
-                                <div className="p-4 space-y-2">
-                                    <div className="h-3 bg-white/5 rounded w-1/3" />
-                                    <div className="h-4 bg-white/5 rounded w-full" />
-                                    <div className="h-3 bg-white/5 rounded w-2/3" />
-                                </div>
+                {hotTakesLoading ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {[1,2,3,4].map(i => (
+                            <div key={i} className="bg-surface/50 border border-white/5 rounded-2xl p-5 animate-pulse space-y-3">
+                                <div className="h-4 bg-white/10 rounded w-3/4" />
+                                <div className="h-3 bg-white/10 rounded w-1/2" />
+                                <div className="h-8 bg-white/5 rounded-lg" />
                             </div>
                         ))}
                     </div>
-                ) : filteredPublisher.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredPublisher.slice(0, 9).map(update => {
-                            const gradient = PUBLISHER_COLORS[update.publisher_slug] || 'from-slate-500 to-gray-600';
+                ) : hotTakes.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {hotTakes.map(take => {
+                            const totalVotes = (take.agree_count || 0) + (take.disagree_count || 0);
+                            const agreePercent = totalVotes > 0 ? Math.round((take.agree_count / totalVotes) * 100) : 50;
+                            const userVote = userVotes[take.id];
+                            const categoryColors = {
+                                reading_habits: 'text-emerald-400 bg-emerald-500/15',
+                                book_industry: 'text-blue-400 bg-blue-500/15',
+                                pricing: 'text-amber-400 bg-amber-500/15',
+                                technology: 'text-cyan-400 bg-cyan-500/15',
+                                culture: 'text-pink-400 bg-pink-500/15',
+                                debates: 'text-violet-400 bg-violet-500/15',
+                            };
+
                             return (
-                                <a
-                                    key={update.id}
-                                    href={update.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="group bg-surface border border-white/5 rounded-2xl overflow-hidden hover:border-sky-500/40 transition-all flex flex-col"
-                                >
-                                    {/* Image or gradient fallback */}
-                                    {update.image_url ? (
-                                        <img
-                                            src={update.image_url}
-                                            alt={update.title}
-                                            className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300"
-                                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                                        />
-                                    ) : null}
-                                    <div
-                                        className={cn(
-                                            'w-full h-36 bg-gradient-to-br items-center justify-center',
-                                            gradient,
-                                            update.image_url ? 'hidden' : 'flex'
-                                        )}
-                                    >
-                                        <Building2 className="w-10 h-10 text-white/40" />
-                                    </div>
-
-                                    <div className="p-4 flex flex-col flex-1">
-                                        {/* Publisher badge */}
-                                        <span className={cn(
-                                            'self-start text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 bg-gradient-to-r text-white',
-                                            gradient
-                                        )}>
-                                            {update.publisher}
+                                <div key={take.id} className="bg-surface border border-white/5 rounded-2xl p-5 hover:border-orange-500/30 transition-all">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider", categoryColors[take.category] || 'text-text-muted bg-white/5')}>
+                                            {take.category?.replace('_', ' ')}
                                         </span>
-
-                                        <h3 className="font-semibold text-white text-sm line-clamp-2 mb-1 group-hover:text-sky-300 transition-colors">
-                                            {update.title}
-                                        </h3>
-
-                                        {update.summary && (
-                                            <p className="text-xs text-text-muted line-clamp-2 mb-3 flex-1">
-                                                {update.summary}
-                                            </p>
-                                        )}
-
-                                        <div className="flex items-center justify-between text-[10px] text-text-muted mt-auto">
-                                            <span>
-                                                {update.published_at
-                                                    ? new Date(update.published_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
-                                                    : 'Recent'}
-                                            </span>
-                                            <span className="flex items-center gap-1 text-sky-400 group-hover:gap-2 transition-all">
-                                                Read more <ExternalLink size={10} />
-                                            </span>
-                                        </div>
+                                        <span className="text-[10px] text-text-muted ml-auto">
+                                            {take.topic}
+                                        </span>
                                     </div>
-                                </a>
+
+                                    <p className="text-white font-medium mb-3 leading-relaxed text-sm">{take.take_text}</p>
+
+                                    {/* Vote bar */}
+                                    {totalVotes > 0 && (
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                                                <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500" style={{ width: `${agreePercent}%` }} />
+                                            </div>
+                                            <span className="text-[10px] font-semibold text-text-muted">{totalVotes} votes</span>
+                                        </div>
+                                    )}
+
+                                    {/* Vote buttons */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleVote(take.id, 'agree')}
+                                            className={cn(
+                                                "flex-1 py-2 text-xs font-semibold rounded-lg border transition-all",
+                                                userVote === 'agree'
+                                                    ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-300"
+                                                    : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                                            )}
+                                        >
+                                            👍 Agree {totalVotes > 0 ? `${agreePercent}%` : ''}
+                                        </button>
+                                        <button
+                                            onClick={() => handleVote(take.id, 'disagree')}
+                                            className={cn(
+                                                "flex-1 py-2 text-xs font-semibold rounded-lg border transition-all",
+                                                userVote === 'disagree'
+                                                    ? "bg-red-500/30 border-red-500/50 text-red-300"
+                                                    : "bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20"
+                                            )}
+                                        >
+                                            👎 Disagree {totalVotes > 0 ? `${100 - agreePercent}%` : ''}
+                                        </button>
+                                    </div>
+                                </div>
                             );
                         })}
                     </div>
                 ) : (
-                    /* Empty state — feed not yet populated */
-                    <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center">
-                        <Newspaper className="w-10 h-10 text-text-muted mx-auto mb-3" />
-                        <p className="text-white font-semibold mb-1">No publisher news yet</p>
-                        <p className="text-sm text-text-muted mb-4">
-                            The feed is populated by a scheduled background job every 6 hours.
-                            Deploy your Supabase Edge Function to start receiving articles.
-                        </p>
+                    <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-2xl p-8 text-center">
+                        <Flame className="w-10 h-10 text-orange-400/40 mx-auto mb-3" />
+                        <p className="text-white font-semibold mb-1">No hot takes today yet</p>
+                        <p className="text-sm text-text-muted mb-4">Fresh AI-generated debates drop daily!</p>
                         <button
-                            onClick={handleRefreshPublisher}
-                            className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-sm font-medium transition-colors"
+                            onClick={handleGenerateHotTakes}
+                            disabled={generatingTakes}
+                            className={cn(
+                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors",
+                                generatingTakes
+                                    ? "bg-white/5 text-text-muted cursor-not-allowed"
+                                    : "bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
+                            )}
                         >
-                            Check again
+                            {generatingTakes ? (
+                                <><RefreshCw className="w-4 h-4 animate-spin" /> Generating...</>
+                            ) : (
+                                <><Sparkles className="w-4 h-4" /> Generate Today's Hot Takes</>
+                            )}
                         </button>
                     </div>
                 )}
-            </div>
-
-            {/* Hot Takes */}
-            <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <Flame className="w-5 h-5 text-orange-400" />
-                    <h2 className="text-xl font-bold text-white">Hot Takes</h2>
-                    <span className="text-xs text-text-muted">What do you think?</span>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                    {HOT_TAKES.map(take => (
-                        <div key={take.id} className="bg-surface border border-white/5 rounded-2xl p-5 hover:border-orange-500/30 transition-colors">
-                            <p className="text-white font-medium mb-3 leading-relaxed">{take.text}</p>
-                            <p className="text-xs text-text-muted mb-3">— {take.author}</p>
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all" style={{ width: `${take.agree}%` }} />
-                                </div>
-                                <span className="text-xs font-semibold text-emerald-400">{take.agree}%</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button className="flex-1 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-500/20 transition-colors">
-                                    👍 Agree
-                                </button>
-                                <button className="flex-1 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg border border-red-500/20 transition-colors">
-                                    👎 Disagree
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
 
             {/* Reading Trends */}

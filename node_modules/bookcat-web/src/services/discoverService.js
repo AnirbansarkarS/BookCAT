@@ -28,27 +28,14 @@ export const getTrendingBooks = async () => {
 };
 
 /**
- * Get active readers with their current books
+ * Get active readers with their current books (realtime via RPC)
  */
-export const getActiveReaders = async () => {
+export const getActiveReaders = async (limit = 8) => {
     try {
-        // Get users with recent reading sessions
         const { data, error } = await supabase
-            .from('profiles')
-            .select(`
-                id,
-                username,
-                avatar_url,
-                book_count,
-                total_reading_time
-            `)
-            .order('total_reading_time', { ascending: false })
-            .limit(10);
+            .rpc('get_active_readers', { limit_count: limit });
 
         if (error) throw error;
-
-        // For each user, get their current reading book
-        // In production, join with books where status = 'reading_now'
         return data || [];
     } catch (error) {
         console.error('Error fetching active readers:', error);

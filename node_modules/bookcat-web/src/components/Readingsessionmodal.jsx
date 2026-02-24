@@ -222,14 +222,14 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
         // Save if there's either time spent OR pages read
         if (user && (durationMinutes > 0 || pagesRead > 0)) {
             try {
-                // Use at least 1 minute for database constraint
-                const dbDuration = durationMinutes > 0 ? durationMinutes : (pagesRead > 0 ? 1 : 0);
+                // Use at least 60 seconds for database constraint
+                const dbSeconds = elapsedSeconds > 0 ? elapsedSeconds : (pagesRead > 0 ? 60 : 0);
 
-                if (dbDuration > 0) {
+                if (dbSeconds > 0) {
                     console.log('💾 Saving to database:', {
                         userId: user.id,
                         bookId: book.id,
-                        durationMinutes: dbDuration,
+                        durationSeconds: dbSeconds,
                         pagesRead,
                         intent
                     });
@@ -237,7 +237,7 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
                     const result = await logReadingSession(
                         user.id,
                         book.id,
-                        dbDuration,
+                        dbSeconds,
                         pagesRead,
                         intent
                     );
@@ -247,13 +247,13 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
                     } else {
                         console.log('✅ Session saved successfully');
                         
-                        // Log activity if session was significant (>= 5 minutes)
-                        if (dbDuration >= 5) {
+                        // Log activity if session was significant (>= 300 seconds / 5 minutes)
+                        if (dbSeconds >= 300) {
                             await logReadingSessionActivity(
                                 user.id,
                                 book.id,
                                 book.title,
-                                dbDuration,
+                                Math.floor(dbSeconds / 60),
                                 pagesRead
                             );
                         }
