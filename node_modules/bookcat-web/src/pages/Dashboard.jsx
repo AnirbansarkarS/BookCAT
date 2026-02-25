@@ -4,7 +4,7 @@ import { BookOpen, Clock, TrendingUp, Plus, Play, BarChart3, Lightbulb, RefreshC
 import { useAuth } from '../hooks/useAuth';
 import { getUserBooks } from '../services/bookService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
-import RealtimeStatsWidget from '../components/RealtimeStatsWidget';
+import RealtimeStatsWidget from '../components/Realtimestatswidget';
 import { cn } from '../lib/utils';
 import { eventBus, EVENTS } from '../utils/eventBus';
 
