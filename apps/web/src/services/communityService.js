@@ -9,15 +9,22 @@ export const getAllUsers = async (currentUserId) => {
             .from('profiles')
             .select('id, username, email, avatar_url, bio, created_at')
             .neq('id', currentUserId);
-        if (error) throw error;
+        if (error) {
+            console.warn('Could not fetch profiles:', error);
+            return [];
+        }
 
         const enriched = await Promise.all((data || []).map(async (user) => {
-            const { count: bookCount } = await supabase
-                .from('books').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-            const { data: sessions } = await supabase
-                .from('reading_sessions').select('duration_minutes').eq('user_id', user.id);
-            const totalMinutes = (sessions || []).reduce((s, r) => s + (r.duration_minutes || 0), 0);
-            return { ...user, book_count: bookCount || 0, total_reading_time: Math.round(totalMinutes / 60) };
+            try {
+                const { count: bookCount } = await supabase
+                    .from('books').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+                const { data: sessions } = await supabase
+                    .from('reading_sessions').select('duration_minutes').eq('user_id', user.id);
+                const totalMinutes = (sessions || []).reduce((s, r) => s + (r.duration_minutes || 0), 0);
+                return { ...user, book_count: bookCount || 0, total_reading_time: Math.round(totalMinutes / 60) };
+            } catch {
+                return { ...user, book_count: 0, total_reading_time: 0 };
+            }
         }));
         return enriched;
     } catch (error) {
@@ -38,9 +45,16 @@ export const getFriends = async (userId) => {
         const userIds = new Set();
         (friendships || []).forEach(f => userIds.add(f.user_id === userId ? f.friend_id : f.user_id));
 
+        // Handle empty case - no friends yet
+        if (userIds.size === 0) {
+            return [];
+        }
+
         const { data: profiles, error: pe } = await supabase
             .from('profiles').select('*').in('id', Array.from(userIds));
-        if (pe) throw pe;
+        if (pe) {
+            console.warn('Could not fetch profiles, continuing with limited data:', pe);
+        }
 
         return (friendships || []).map(f => {
             const isSender = f.user_id === userId;
