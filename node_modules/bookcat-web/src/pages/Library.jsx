@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { getUserBooks, updateBookDetails, logReadingSession, fetchPageCount } from '../services/bookService';
 import AddBookModal from '../components/AddBookModal';
-import ReadingSessionModal from '../components/ReadingSessionModal';
+import ReadingSessionModal from '../components/Readingsessionmodal';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { logBookCompletion } from '../services/activityService';
 
