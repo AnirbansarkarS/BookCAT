@@ -555,24 +555,23 @@ export default function Community() {
         </div>
     );
 
-    // Mobile full-screen panel
-    if (mobileView === 'panel' && panel && active) {
-        return (
-            <div className="fixed inset-0 z-50 bg-surface lg:hidden flex flex-col pb-20">
-                {panel === 'chat' && (
-                    <ChatPanel friend={active} me={user} onClose={closePanel}
-                        onViewLibrary={() => openPanel('library', active)} />
-                )}
-                {panel === 'library' && (
-                    <FriendLibraryPanel friend={active} onClose={closePanel}
-                        onOpenChat={() => openPanel('chat', active)} />
-                )}
-            </div>
-        );
-    }
-
     return (
-        <div className="flex gap-4 h-[calc(100vh-8rem)]">
+        <>
+            {/* Mobile full-screen panel overlay - rendered alongside main layout */}
+            {mobileView === 'panel' && panel && active && (
+                <div className="fixed inset-0 z-50 bg-surface lg:hidden flex flex-col pb-20">
+                    {panel === 'chat' && (
+                        <ChatPanel friend={active} me={user} onClose={closePanel}
+                            onViewLibrary={() => openPanel('library', active)} />
+                    )}
+                    {panel === 'library' && (
+                        <FriendLibraryPanel friend={active} onClose={closePanel}
+                            onOpenChat={() => openPanel('chat', active)} />
+                    )}
+                </div>
+            )}
+
+            <div className="flex gap-4 h-[calc(100vh-8rem)]">
             {/* Left list */}
             <div className={cn(
                 'flex flex-col gap-3 min-h-0 w-full transition-all duration-300',
@@ -814,5 +813,6 @@ export default function Community() {
                 ) : null}
             </div>
         </div>
+        </>
     );
 }
