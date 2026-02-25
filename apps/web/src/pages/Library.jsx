@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getUserBooks, updateBookDetails, logReadingSession, fetchPageCount } from '../services/bookService';
 import AddBookModal from '../components/AddBookModal';
 import ReadingSessionModal from '../components/Readingsessionmodal';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { eventBus, EVENTS } from '../utils/eventbus';
 import { logBookCompletion } from '../services/activityService';
 
 // System tags for book states

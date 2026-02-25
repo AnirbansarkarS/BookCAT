@@ -6,7 +6,7 @@ import { getUserBooks } from '../services/bookService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 import RealtimeStatsWidget from '../components/Realtimestatswidget';
 import { cn } from '../lib/utils';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { eventBus, EVENTS } from '../utils/eventbus';
 
 export default function Dashboard() {
     const { user } = useAuth();

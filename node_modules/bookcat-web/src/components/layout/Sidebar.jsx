@@ -4,7 +4,7 @@ import { Library, Users, ArrowLeftRight, BarChart2, Settings, X, Target } from '
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBooks } from '../../services/bookService';
-import { eventBus, EVENTS } from '../../utils/eventBus';
+import { eventBus, EVENTS } from '../../utils/eventbus';
 import logo from '../../assets/bookcat-logo.png';
 
 import { navItems } from '../../lib/navItems';

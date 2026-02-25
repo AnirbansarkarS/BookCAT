@@ -3,7 +3,7 @@ import { Clock, BookOpen, Zap, TrendingUp, Target, Award } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getReadingSessions, getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { eventBus, EVENTS } from '../utils/eventbus';
 import { statsCache } from '../utils/statsCache';
 
 export default function RealtimeStatsWidget() {

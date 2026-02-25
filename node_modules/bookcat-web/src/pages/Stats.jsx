@@ -3,7 +3,7 @@ import { Clock, BookOpen, TrendingUp, Calendar, Tag, Zap, Award, BarChart3, PieC
 import { useAuth } from '../hooks/useAuth';
 import { getReadingSessions, getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { eventBus, EVENTS } from '../utils/eventbus';
 import { statsCache } from '../utils/statsCache';
 import { logMilestone } from '../services/activityService';
 
