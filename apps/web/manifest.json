@@ -1,0 +1,25 @@
+{
+  "background_color": "#0f0e0e",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "bookcatq.netlify",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "bookcatq.netlify",
+  "start_url": "/",
+  "theme_color": "#4a51f6",
+  "icons": [
+    {
+      "src": "https://bookcatq.netlify.app/vite.svg",
+      "type": "image/svg+xml",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ]
+}
