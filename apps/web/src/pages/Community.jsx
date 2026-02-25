@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     UserPlus, UserCheck, MessageSquare, BookOpen, Users, TrendingUp,
     Check, X, Search, Send, ArrowLeft, Clock, CheckCircle, Loader2,
-    Library, Zap, Hash, ChevronDown
+    Library, Zap, Hash, ChevronDown, ArrowLeftRight, PackagePlus
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -10,6 +10,8 @@ import {
     getFriends, getActivityFeed, sendMessage, getConversation,
     markMessagesAsRead, subscribeToMessages, subscribeToFriendRequests
 } from '../services/communityService';
+import { createExchangeOffer } from '../services/exchangeService';
+import { getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
 
 // ─────────────────────────────────────────────────────────────
@@ -262,6 +264,188 @@ function ChatPanel({ friend, me, onClose, onViewLibrary }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// REQUEST BOOK MODAL
+// ─────────────────────────────────────────────────────────────
+
+function RequestBookModal({ isOpen, onClose, friend, targetBook }) {
+    const { user } = useAuth();
+    const [myBooks, setMyBooks] = useState([]);
+    const [selectedBookId, setSelectedBookId] = useState(null);
+    const [message, setMessage] = useState('');
+    const [deliveryMethod, setDeliveryMethod] = useState('meetup');
+    const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && user) {
+            getUserBooks(user.id).then(setMyBooks);
+            setSelectedBookId(null);
+            setMessage('');
+            setDeliveryMethod('meetup');
+            setSubmitted(false);
+        }
+    }, [isOpen, user]);
+
+    const handleSubmit = async () => {
+        if (!user || !friend || !targetBook) return;
+        setLoading(true);
+        const { error } = await createExchangeOffer({
+            initiatorId: user.id,
+            recipientId: friend.friend_id,
+            initiatorBookId: selectedBookId,
+            recipientBookId: targetBook.id,
+            message: message.trim() || `Hey, I'd love to borrow "${targetBook.title}"!`,
+            deliveryMethod,
+            expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+        setLoading(false);
+        if (!error) setSubmitted(true);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-surface border border-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-primary/10 rounded-xl">
+                            <PackagePlus size={16} className="text-primary" />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-white text-sm">Request Book</h2>
+                            <p className="text-[11px] text-text-muted line-clamp-1">{targetBook?.title}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-1.5 hover:bg-white/5 rounded-lg text-text-muted">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 min-h-0">
+                    {submitted ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+                            <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                                <CheckCircle className="w-8 h-8 text-emerald-400" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-white">Request Sent!</p>
+                                <p className="text-text-muted text-sm mt-1">
+                                    {friend.username} will be notified. Check the Exchange page for updates.
+                                </p>
+                            </div>
+                            <button onClick={onClose}
+                                className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-xl">
+                                Done
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Target book preview */}
+                            <div className="flex gap-3 p-3 bg-white/[0.04] border border-white/[0.07] rounded-xl">
+                                <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                                    {targetBook?.cover_url
+                                        ? <img src={targetBook.cover_url} alt={targetBook.title} className="w-full h-full object-cover" />
+                                        : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-text-muted" /></div>}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-semibold text-white text-sm leading-snug line-clamp-2">{targetBook?.title}</p>
+                                    <p className="text-[11px] text-text-muted mt-0.5">{targetBook?.authors || 'Unknown Author'}</p>
+                                    <p className="text-[10px] text-text-muted/60 mt-1">from {friend.username}'s library</p>
+                                </div>
+                            </div>
+
+                            {/* Offer your book */}
+                            <div>
+                                <p className="text-xs font-semibold text-white mb-2">Offer a book in return <span className="text-text-muted font-normal">(optional)</span></p>
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    <button
+                                        onClick={() => setSelectedBookId(null)}
+                                        className={cn(
+                                            'w-full flex items-center gap-2 p-2.5 border rounded-xl text-left text-sm transition-all',
+                                            selectedBookId === null
+                                                ? 'bg-primary/10 border-primary/40 text-primary'
+                                                : 'bg-white/[0.03] border-white/[0.07] text-text-muted hover:border-white/20'
+                                        )}>
+                                        <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                                            <X size={12} />
+                                        </div>
+                                        No book offered — just asking nicely
+                                    </button>
+                                    {myBooks.map(b => (
+                                        <button key={b.id}
+                                            onClick={() => setSelectedBookId(b.id)}
+                                            className={cn(
+                                                'w-full flex items-center gap-2.5 p-2.5 border rounded-xl text-left transition-all',
+                                                selectedBookId === b.id
+                                                    ? 'bg-primary/10 border-primary/40'
+                                                    : 'bg-white/[0.03] border-white/[0.07] hover:border-white/20'
+                                            )}>
+                                            <div className="w-8 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                                                {b.cover_url
+                                                    ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                                                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={10} className="text-text-muted" /></div>}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-white text-xs font-medium line-clamp-1">{b.title}</p>
+                                                <p className="text-text-muted text-[10px] truncate">{b.authors || 'Unknown'}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Delivery method */}
+                            <div>
+                                <p className="text-xs font-semibold text-white mb-2">Delivery method</p>
+                                <div className="flex gap-2">
+                                    {[{ id: 'meetup', label: 'Meet up' }, { id: 'mail', label: 'Mail' }, { id: 'digital', label: 'Digital' }].map(m => (
+                                        <button key={m.id} onClick={() => setDeliveryMethod(m.id)}
+                                            className={cn(
+                                                'flex-1 py-2 text-xs font-medium rounded-xl border transition-all',
+                                                deliveryMethod === m.id
+                                                    ? 'bg-primary/10 border-primary/40 text-primary'
+                                                    : 'bg-white/[0.04] border-white/[0.07] text-text-muted hover:border-white/20'
+                                            )}>
+                                            {m.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Message */}
+                            <div>
+                                <p className="text-xs font-semibold text-white mb-2">Message <span className="text-text-muted font-normal">(optional)</span></p>
+                                <textarea
+                                    value={message}
+                                    onChange={e => setMessage(e.target.value)}
+                                    rows={3}
+                                    placeholder={`Hey ${friend.username}, I'd love to borrow "${targetBook?.title}"…`}
+                                    className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-text-muted/40 resize-none outline-none focus:border-primary/40 transition-all"
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {!submitted && (
+                    <div className="px-4 sm:px-5 py-4 border-t border-white/[0.07] flex-shrink-0">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-[0.98]">
+                            {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftRight size={16} />}
+                            {loading ? 'Sending…' : 'Send Request'}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
 // FRIEND LIBRARY PANEL (FIXED: Always full height)
 // ─────────────────────────────────────────────────────────────
 
@@ -270,6 +454,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [q, setQ] = useState('');
+    const [requestBook, setRequestBook] = useState(null); // book being requested
     const [expanded, setExpanded] = useState(null);
 
     useEffect(() => {
@@ -476,12 +661,27 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                                             <Clock size={9} /> Last read {fmt.rel(book.last_session_at)} ago
                                         </p>
                                     )}
+                                    {/* Request button */}
+                                    <button
+                                        onClick={e => { e.stopPropagation(); setRequestBook(book); }}
+                                        className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold rounded-xl border border-primary/20 transition-all active:scale-[0.97]">
+                                        <PackagePlus size={12} />
+                                        Request this book
+                                    </button>
                                 </div>
                             )}
                         </div>
                     );
                 })}
             </div>
+
+            {/* Request Book Modal */}
+            <RequestBookModal
+                isOpen={!!requestBook}
+                onClose={() => setRequestBook(null)}
+                friend={friend}
+                targetBook={requestBook}
+            />
         </div>
     );
 }

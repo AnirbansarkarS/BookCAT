@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, User, LogOut, UserCircle } from 'lucide-react'
+import { Menu, Bell, LogOut, UserCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 export function Navbar({ onMenuClick }) {
@@ -52,16 +52,6 @@ export function Navbar({ onMenuClick }) {
 
                 {/* Mobile Logo */}
                 <span className="md:hidden text-lg font-bold text-white">Book<span className="text-primary">Cat</span></span>
-
-                {/* Search Bar (Desktop) */}
-                <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-surface/50 border border-white/5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all w-64 lg:w-96">
-                    <Search size={16} className="text-text-muted" />
-                    <input
-                        type="text"
-                        placeholder="Search books, authors..."
-                        className="bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-muted w-full"
-                    />
-                </div>
 
                 {/* Desktop Navigation Links */}
                 <div className="hidden md:flex items-center gap-6 ml-4">
