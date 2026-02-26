@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { X, Camera, Edit3, Loader2, Search } from 'lucide-react';
 const ISBNScanner = lazy(() => import('./ISBNScanner'));
 import BookPreviewCard from './BookPreviewCard';
@@ -52,14 +52,14 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         onClose();
     };
 
-    const handleISBNDetected = async (isbn) => {
+    const handleISBNDetected = useCallback(async (isbn) => {
         setScannedISBN(isbn);
         setIsLoading(true);
         setError(null);
 
         try {
             // Check for duplicates
-            const isDuplicate = await checkDuplicateISBN(user.id, isbn);
+            const { exists: isDuplicate } = await checkDuplicateISBN(user.id, isbn);
             if (isDuplicate) {
                 setError('This book is already in your library');
                 setIsLoading(false);
@@ -82,7 +82,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             setError('Failed to fetch book data. Please try again.');
             setIsLoading(false);
         }
-    };
+    }, [user?.id]);
 
     const handleSaveBook = async (finalBookData) => {
         setIsSaving(true);
@@ -127,7 +127,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
 
         try {
             // Check for duplicates
-            const isDuplicate = await checkDuplicateISBN(user.id, manualForm.isbn);
+            const { exists: isDuplicate } = await checkDuplicateISBN(user.id, manualForm.isbn);
             if (isDuplicate) {
                 setError('A book with this ISBN is already in your library');
                 setIsFetchingISBN(false);

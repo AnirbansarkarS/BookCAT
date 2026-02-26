@@ -7,10 +7,17 @@ export default function ISBNScanner({ onDetected, onClose }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const codeReaderRef = useRef(null);
+    const onDetectedRef = useRef(onDetected);
+
+    // Keep callback ref current without restarting the camera
+    useEffect(() => {
+        onDetectedRef.current = onDetected;
+    }, [onDetected]);
 
     useEffect(() => {
         const codeReader = new BrowserMultiFormatReader();
         codeReaderRef.current = codeReader;
+        let stopped = false;
 
         const startScanning = async () => {
             try {
@@ -22,10 +29,11 @@ export default function ISBNScanner({ onDetected, onClose }) {
                     null, // Use default camera
                     videoRef.current,
                     (result, err) => {
-                        if (result) {
+                        if (result && !stopped) {
+                            stopped = true;
                             const isbn = result.getText();
                             console.log('ISBN detected:', isbn);
-                            onDetected(isbn);
+                            onDetectedRef.current(isbn);
                             codeReader.reset(); // Stop scanning after detection
                         }
                         // Ignore errors during scanning (normal when no barcode in view)
@@ -44,11 +52,12 @@ export default function ISBNScanner({ onDetected, onClose }) {
 
         // Cleanup function
         return () => {
+            stopped = true;
             if (codeReaderRef.current) {
                 codeReaderRef.current.reset();
             }
         };
-    }, [onDetected]);
+    }, []); // empty deps — only init once
 
     return (
         <div className="relative">
