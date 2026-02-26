@@ -104,9 +104,10 @@ export default function Signup() {
         }, 16) // ~60fps
     }
 
-    // Add global event listeners for drag
+    // Add global event listeners for drag - only on desktop
     React.useEffect(() => {
-        if (isDragging) {
+        const isDesktop = window.innerWidth >= 768 // md breakpoint
+        if (isDragging && isDesktop) {
             window.addEventListener('mousemove', handleMouseMove)
             window.addEventListener('mouseup', handleMouseUp)
             window.addEventListener('touchmove', handleMouseMove)
@@ -152,9 +153,31 @@ export default function Signup() {
             <div className="relative z-10 w-full max-w-md">
                 {/* Lamp Container */}
                 <div className="relative mb-8 flex flex-col items-center">
-                    {/* Ceiling Mount Cord */}
-                    <div className="relative h-16 flex flex-col items-center">
-                        <div className="w-0.5 h-16 bg-gradient-to-b from-slate-600 to-slate-700" />
+                    {/* Desktop Version - Wire Pulling (hidden on mobile) */}
+                    <div className="hidden md:block">
+                        {/* Ceiling Mount Cord */}
+                        <div className="relative h-16 flex flex-col items-center">
+                            <div className="w-0.5 h-16 bg-gradient-to-b from-slate-600 to-slate-700" />
+                        </div>
+                    </div>
+
+                    {/* Mobile Version - Simple Switch */}
+                    <div className="block md:hidden">
+                        <div className="flex items-center gap-4 mb-4">
+                            <span className={`text-sm font-medium transition-colors ${lampOn ? 'text-blue-400' : 'text-slate-400'}`}>
+                                Light
+                            </span>
+                            <button
+                                onClick={() => setLampOn(!lampOn)}
+                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                                    lampOn ? 'bg-blue-500' : 'bg-slate-600'
+                                }`}
+                            >
+                                <div className={`absolute w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 top-0.5 ${
+                                    lampOn ? 'translate-x-6' : 'translate-x-0.5'
+                                }`} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Lamp Fixture */}
@@ -205,8 +228,8 @@ export default function Signup() {
                             </div>
                         )}
 
-                        {/* Pull Chain - Below Lamp */}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 flex flex-col items-center pt-2">
+                        {/* Pull Chain - Below Lamp - Desktop Only */}
+                        <div className="hidden md:flex absolute top-full left-1/2 -translate-x-1/2 flex-col items-center pt-2">
                             {/* Elastic Rope */}
                             <div 
                                 className="relative transition-all"
