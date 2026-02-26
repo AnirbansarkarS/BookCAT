@@ -22,6 +22,8 @@ export default defineConfig({
                 cleanupOutdatedCaches: true,
                 clientsClaim: true,
                 skipWaiting: true,
+                navigateFallback: '/index.html',
+                navigateFallbackDenylist: [/^\/api/],
             },
             devOptions: {
                 // Enable SW in dev so you can verify in DevTools without a full build
