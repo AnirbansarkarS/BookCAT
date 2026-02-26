@@ -1,0 +1,16 @@
+[build]
+  # Build command for the monorepo - build only the web app
+  command = "npm install && npx turbo run build --filter=bookcat-web"
+  
+  # Output directory (where Vite builds to by default)
+  publish = "apps/web/dist"
+
+[build.environment]
+  # Use Node.js 18+ for better compatibility
+  NODE_VERSION = "18"
+
+# Handle SPA routing - this is the most important part for fixing 404s
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
