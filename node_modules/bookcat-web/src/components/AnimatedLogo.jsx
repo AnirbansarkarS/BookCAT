@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import bookcatLogo from "../assets/bookcat-logo.png"; // adjust path to your actual asset
+import bookcatLogo from "../assets/bookcat-logo.webp";
 
 /**
  * AnimatedLogo

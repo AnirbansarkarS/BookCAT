@@ -62,6 +62,10 @@ export default function BookPreviewCard({ bookData, isLoading, error, onSave, on
                             src={editedData.cover_url}
                             alt={editedData.title}
                             className="w-full max-w-[200px] rounded-lg border border-white/10 shadow-lg"
+                            loading="lazy"
+                            decoding="async"
+                            width="200"
+                            height="300"
                         />
                     ) : (
                         <div className="w-full max-w-[200px] h-[300px] bg-white/5 rounded-lg border border-white/10 flex items-center justify-center">

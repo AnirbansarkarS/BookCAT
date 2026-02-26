@@ -50,6 +50,7 @@ export default function Library() {
     const [readingSessionBook, setReadingSessionBook] = useState(null);
     const [showIntentModal, setShowIntentModal] = useState(false);
     const [selectedIntent, setSelectedIntent] = useState(null);
+    const [visibleCount, setVisibleCount] = useState(12);
 
     const loadBooks = async () => {
         if (!user) return;
@@ -285,6 +286,8 @@ export default function Library() {
     };
 
     const filteredBooks = filter === 'All' ? books : books.filter(b => b.status === filter);
+    const visibleBooks = filteredBooks.slice(0, visibleCount);
+    const hasMoreBooks = filteredBooks.length > visibleCount;
 
     const getSystemTag = (book) => {
         if (!book.tags || !Array.isArray(book.tags)) return null;
@@ -311,7 +314,7 @@ export default function Library() {
                         {['All', 'Reading', 'Want to Read', 'Completed', 'Re-reading'].map((tab) => (
                             <button
                                 key={tab}
-                                onClick={() => setFilter(tab)}
+                                onClick={() => { setFilter(tab); setVisibleCount(12); }}
                                 className={cn(
                                     "px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
                                     filter === tab
@@ -378,8 +381,8 @@ export default function Library() {
                     : typeof window !== 'undefined' && window.innerWidth < 1024 ? 4
                     : typeof window !== 'undefined' && window.innerWidth < 1280 ? 5 : 6;
                 const shelves = [];
-                for (let i = 0; i < filteredBooks.length; i += BOOKS_PER_SHELF) {
-                    shelves.push(filteredBooks.slice(i, i + BOOKS_PER_SHELF));
+                for (let i = 0; i < visibleBooks.length; i += BOOKS_PER_SHELF) {
+                    shelves.push(visibleBooks.slice(i, i + BOOKS_PER_SHELF));
                 }
 
                 return (
@@ -434,6 +437,10 @@ export default function Library() {
                                                                 "w-full h-full object-cover transition-all duration-500",
                                                                 isOpening ? "scale-110 blur-sm" : "group-hover:scale-105"
                                                             )}
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            width="200"
+                                                            height="300"
                                                         />
                                                     ) : (
                                                         <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-amber-800/20 flex items-center justify-center">
@@ -670,6 +677,30 @@ export default function Library() {
                     </div>
                 );
             })()}
+            {/* Load More Button */}
+            {!isLoading && hasMoreBooks && (
+                <div className="flex justify-center py-8">
+                    <button
+                        onClick={() => setVisibleCount(prev => prev + 12)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl font-medium transition-all hover:scale-105"
+                    >
+                        <Plus size={20} />
+                        Load More Books ({filteredBooks.length - visibleCount} remaining)
+                    </button>
+                </div>
+            )}
+            {/* Load More Button */}
+            {!isLoading && hasMoreBooks && (
+                <div className="flex justify-center pt-4 pb-2">
+                    <button
+                        onClick={() => setVisibleCount(prev => prev + 12)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-colors border border-white/10 hover:border-white/20"
+                    >
+                        <ChevronRight size={16} />
+                        Load More ({filteredBooks.length - visibleCount} remaining)
+                    </button>
+                </div>
+            )}
 
             {/* No results */}
             {!isLoading && books.length > 0 && filteredBooks.length === 0 && (

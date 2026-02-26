@@ -88,7 +88,7 @@ export default function Discover() {
     const moodInputRef = useRef(null);
 
     useEffect(() => {
-        // Load NYT weekly bestsellers
+        // CRITICAL PATH — Load NYT bestsellers + quiz immediately (visible above fold)
         (async () => {
             setLoadingNYT(true);
             const { data, weekStart } = await getWeeklyTrendingBooks('all', 20);
@@ -97,35 +97,54 @@ export default function Discover() {
             setLoadingNYT(false);
         })();
 
-        // Load AI-generated book facts
         (async () => {
-            setFactsLoading(true);
-            const facts = await getTodayBookFacts();
-            setBookFacts(facts);
-            setFactsLoading(false);
-        })();
+            setLoadingQuiz(true);
+            const quiz = await getDailyQuiz();
+            setDailyQuiz(quiz);
+            setLoadingQuiz(false);
 
-        // Load Groq-powered hot takes
-        (async () => {
-            setHotTakesLoading(true);
-            const takes = await getTodayHotTakes();
-            setHotTakes(takes);
-            setHotTakesLoading(false);
-
-            // Load user's votes
-            if (user) {
-                const votes = await getUserVotes(user.id);
-                setUserVotes(votes);
+            // Check if user already answered today
+            if (quiz && user) {
+                const existing = await getUserQuizAnswer(user.id, quiz.id);
+                if (existing) {
+                    setQuizSelected(existing.selected_answer);
+                    setQuizRevealed(true);
+                }
             }
         })();
 
-        // Load active readers (realtime)
-        (async () => {
-            setReadersLoading(true);
-            const readers = await getActiveReaders(8);
-            setActiveReaders(readers);
-            setReadersLoading(false);
-        })();
+        // DEFERRED — Load below-fold content after a short delay to avoid blocking first paint
+        const deferTimer = setTimeout(() => {
+            // Load AI-generated book facts
+            (async () => {
+                setFactsLoading(true);
+                const facts = await getTodayBookFacts();
+                setBookFacts(facts);
+                setFactsLoading(false);
+            })();
+
+            // Load Groq-powered hot takes
+            (async () => {
+                setHotTakesLoading(true);
+                const takes = await getTodayHotTakes();
+                setHotTakes(takes);
+                setHotTakesLoading(false);
+
+                // Load user's votes
+                if (user) {
+                    const votes = await getUserVotes(user.id);
+                    setUserVotes(votes);
+                }
+            })();
+
+            // Load active readers (realtime)
+            (async () => {
+                setReadersLoading(true);
+                const readers = await getActiveReaders(8);
+                setActiveReaders(readers);
+                setReadersLoading(false);
+            })();
+        }, 300);
 
         // Subscribe to realtime reading_sessions for live active readers
         const channel = supabase
@@ -146,24 +165,8 @@ export default function Discover() {
             setActiveReaders(readers);
         }, 60000);
 
-        // Load today's quiz
-        (async () => {
-            setLoadingQuiz(true);
-            const quiz = await getDailyQuiz();
-            setDailyQuiz(quiz);
-            setLoadingQuiz(false);
-
-            // Check if user already answered today
-            if (quiz && user) {
-                const existing = await getUserQuizAnswer(user.id, quiz.id);
-                if (existing) {
-                    setQuizSelected(existing.selected_answer);
-                    setQuizRevealed(true);
-                }
-            }
-        })();
-
         return () => {
+            clearTimeout(deferTimer);
             supabase.removeChannel(channel);
             clearInterval(readersInterval);
         };
@@ -439,6 +442,10 @@ export default function Discover() {
                                                         src={book.thumbnail}
                                                         alt={book.title}
                                                         className="w-full h-48 object-cover rounded-xl bg-white/5"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        width="300"
+                                                        height="192"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-48 bg-gradient-to-br from-pink-500/10 to-violet-500/10 rounded-xl flex items-center justify-center">
@@ -696,6 +703,10 @@ export default function Discover() {
                                                 src={book.image_url}
                                                 alt={book.title}
                                                 className="w-full h-48 object-cover rounded-xl"
+                                                loading="lazy"
+                                                decoding="async"
+                                                width="300"
+                                                height="192"
                                             />
                                         ) : (
                                             <div className="w-full h-48 bg-white/5 rounded-xl flex items-center justify-center">
@@ -774,7 +785,7 @@ export default function Discover() {
                                 <div key={reader.user_id + '-' + idx} className="bg-surface border border-white/5 rounded-2xl p-4 hover:border-sky-500/30 transition-all">
                                     <div className="flex items-center gap-3 mb-3">
                                         {reader.avatar_url ? (
-                                            <img src={reader.avatar_url} alt={reader.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                            <img src={reader.avatar_url} alt={reader.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" loading="lazy" decoding="async" width="40" height="40" />
                                         ) : (
                                             <div className={cn("w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm flex-shrink-0", colors[idx % colors.length])}>
                                                 {initial}

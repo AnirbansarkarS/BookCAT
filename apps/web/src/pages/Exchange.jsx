@@ -176,7 +176,7 @@ function NewExchangeModal({ isOpen, onClose, onSuccess }) {
                                     className={cn('w-full flex items-center gap-3 p-3 border rounded-xl transition-all text-left',
                                         myBookId === b.id ? 'bg-primary/10 border-primary/40' : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.07]')}>
                                     <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-                                        {b.cover_url ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                                        {b.cover_url ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="48" height="64" />
                                             : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-text-muted" /></div>}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ function NewExchangeModal({ isOpen, onClose, onSuccess }) {
                                         className={cn('w-full flex items-center gap-3 p-3 border rounded-xl transition-all text-left',
                                             theirBookId === b.id ? 'bg-primary/10 border-primary/40' : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.07]')}>
                                         <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-                                            {b.cover_url ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                                            {b.cover_url ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="48" height="64" />
                                                 : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-text-muted" /></div>}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -358,7 +358,7 @@ function ExchangeDetailModal({ exchangeId, isOpen, onClose, onUpdate }) {
                             <div className="flex gap-3 p-3 bg-white/[0.03] border border-white/[0.07] rounded-xl">
                                 <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                                     {exchange.initiator_book?.cover_url
-                                        ? <img src={exchange.initiator_book.cover_url} alt="" className="w-full h-full object-cover" />
+                                        ? <img src={exchange.initiator_book.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width="48" height="64" />
                                         : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-text-muted" /></div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -374,7 +374,7 @@ function ExchangeDetailModal({ exchangeId, isOpen, onClose, onUpdate }) {
                                 <div className="flex gap-3 p-3 bg-white/[0.03] border border-white/[0.07] rounded-xl">
                                     <div className="w-12 h-16 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                                         {exchange.recipient_book.cover_url
-                                            ? <img src={exchange.recipient_book.cover_url} alt="" className="w-full h-full object-cover" />
+                                            ? <img src={exchange.recipient_book.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width="48" height="64" />
                                             : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-text-muted" /></div>}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -574,12 +574,12 @@ export default function Exchange() {
                             className="w-full flex items-center gap-4 p-4 bg-surface hover:bg-white/[0.04] border border-white/10 hover:border-primary/40 rounded-2xl transition-all text-left">
                             <div className="flex items-center gap-2">
                                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-                                    {ex.initiator_book?.cover_url ? <img src={ex.initiator_book.cover_url} alt="" className="w-full h-full object-cover" />
+                                    {ex.initiator_book?.cover_url ? <img src={ex.initiator_book.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width="40" height="56" />
                                         : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-text-muted" /></div>}
                                 </div>
                                 <ArrowLeftRight size={16} className="text-text-muted" />
                                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-                                    {ex.recipient_book?.cover_url ? <img src={ex.recipient_book.cover_url} alt="" className="w-full h-full object-cover" />
+                                    {ex.recipient_book?.cover_url ? <img src={ex.recipient_book.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" width="40" height="56" />
                                         : <div className="w-full h-full flex items-center justify-center text-[10px] text-text-muted">?</div>}
                                 </div>
                             </div>

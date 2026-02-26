@@ -259,6 +259,10 @@ export default function Dashboard() {
                                                 src={book.cover_url}
                                                 alt={book.title}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                loading="lazy"
+                                                decoding="async"
+                                                width="200"
+                                                height="300"
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-white/5 flex items-center justify-center">

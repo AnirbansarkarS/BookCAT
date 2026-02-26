@@ -347,6 +347,10 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
                                 src={book.cover_url}
                                 alt={book.title}
                                 className="w-12 h-18 sm:w-16 sm:h-24 object-cover rounded-lg shadow-lg flex-shrink-0"
+                                loading="lazy"
+                                decoding="async"
+                                width="64"
+                                height="96"
                             />
                         )}
                         <div className="min-w-0 flex-1">

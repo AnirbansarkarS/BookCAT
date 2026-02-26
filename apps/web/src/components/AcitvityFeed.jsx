@@ -122,6 +122,10 @@ export default function ActivityFeed() {
                                             src={activity.book_cover} 
                                             alt={activity.book_title}
                                             className="w-8 h-12 object-cover rounded"
+                                            loading="lazy"
+                                            decoding="async"
+                                            width="32"
+                                            height="48"
                                         />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-medium text-white truncate">

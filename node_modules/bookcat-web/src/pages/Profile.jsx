@@ -169,6 +169,10 @@ export default function Profile() {
                                     src={displayAvatar}
                                     alt="Avatar"
                                     className="w-32 h-32 rounded-2xl object-cover border-4 border-surface shadow-2xl"
+                                    loading="lazy"
+                                    decoding="async"
+                                    width="128"
+                                    height="128"
                                 />
                             ) : (
                                 <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center border-4 border-surface shadow-2xl">
@@ -215,7 +219,7 @@ export default function Profile() {
 
                     {/* Bio */}
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                             <Sparkles size={14} /> About Me
                         </label>
                         {isEditing ? (
@@ -235,7 +239,7 @@ export default function Profile() {
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                         {/* Favorite Book */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                                 <Heart size={14} className="text-rose-400" /> Favorite Book
                             </label>
                             {isEditing ? (
@@ -256,7 +260,7 @@ export default function Profile() {
 
                         {/* Favorite Author */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                                 <Star size={14} className="text-amber-400" /> Favorite Author
                             </label>
                             {isEditing ? (
@@ -280,7 +284,7 @@ export default function Profile() {
                     <div className="grid md:grid-cols-3 gap-4 mb-6">
                         {/* Reading Goal */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                                 <Target size={14} className="text-emerald-400" /> Yearly Goal
                             </label>
                             {isEditing ? (
@@ -301,7 +305,7 @@ export default function Profile() {
 
                         {/* Favorite Genre */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                                 <Sparkles size={14} className="text-purple-400" /> Favorite Genre
                             </label>
                             {isEditing ? (
@@ -324,7 +328,7 @@ export default function Profile() {
 
                         {/* Location */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                                 <MapPin size={14} className="text-sky-400" /> Location
                             </label>
                             {isEditing ? (
@@ -347,7 +351,7 @@ export default function Profile() {
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                         {/* Reading Speed */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-3 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
                                 <Zap size={14} /> Reading Speed
                             </label>
                             {isEditing ? (
@@ -382,7 +386,7 @@ export default function Profile() {
 
                         {/* Preferred Format */}
                         <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-3 flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-3">
                                 <BookOpen size={14} /> Preferred Format
                             </label>
                             {isEditing ? (
@@ -414,7 +418,7 @@ export default function Profile() {
 
                     {/* Fun Fact */}
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-text-secondary mb-2">
                             <Coffee size={14} className="text-orange-400" /> Fun Fact
                         </label>
                         {isEditing ? (

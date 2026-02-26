@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { X, Camera, Edit3, Loader2, Search } from 'lucide-react';
-import ISBNScanner from './ISBNScanner';
+const ISBNScanner = lazy(() => import('./ISBNScanner'));
 import BookPreviewCard from './BookPreviewCard';
 import { fetchBookByISBN, checkDuplicateISBN, addBook } from '../services/bookService';
 import { useAuth } from '../hooks/useAuth';
@@ -265,7 +265,9 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                             >
                                 ← Back to options
                             </button>
-                            <ISBNScanner onDetected={handleISBNDetected} />
+                            <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>}>
+                                <ISBNScanner onDetected={handleISBNDetected} />
+                            </Suspense>
                         </div>
                     )}
 

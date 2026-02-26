@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBooks } from '../../services/bookService';
 import { eventBus, EVENTS } from '../../utils/eventBus';
-import logo from '../../assets/bookcat-logo.png';
+import logo from '../../assets/bookcat-logo.webp';
 
 import { navItems } from '../../lib/navItems';
 
@@ -61,14 +61,14 @@ export function Sidebar({ isOpen, onClose }) {
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="h-16 flex items-center justify-between px-6 md:hidden">
-                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain" />
+                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain" width="36" height="36" decoding="async" />
                     <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
                         <X size={24} />
                     </button>
                 </div>
 
                 <div className="hidden md:flex h-16 items-center px-6 border-b border-white/5">
-                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain" />
+                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain" width="36" height="36" decoding="async" />
                 </div>
 
                 <nav className="p-4 space-y-2 mt-4">

@@ -13,6 +13,7 @@
         "@supabase/supabase-js": "^2.95.0",
         "@tailwindcss/vite": "^4.1.18",
         "@zxing/browser": "^0.1.5",
+        "@zxing/library": "^0.21.3",
         "clsx": "^2.1.0",
         "framer-motion": "^12.34.1",
         "lucide-react": "^0.344.0",

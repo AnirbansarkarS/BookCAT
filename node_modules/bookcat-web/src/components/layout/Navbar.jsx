@@ -4,7 +4,7 @@ import { Menu, Bell, LogOut, UserCircle, UserPlus, ArrowLeftRight, MessageSquare
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { cn } from '../../lib/utils'
-import logo from '../../assets/bookcat-logo.png'
+import logo from '../../assets/bookcat-logo.webp'
 
 function relTime(d) {
     const s = Math.floor((Date.now() - new Date(d)) / 1000)
@@ -223,7 +223,7 @@ export function Navbar({ onMenuClick }) {
 
                 {/* Logo — both mobile & desktop */}
                 <button onClick={() => navigate('/')} className="flex items-center">
-                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain drop-shadow-md" />
+                    <img src={logo} alt="BookCat" className="h-9 w-9 object-contain drop-shadow-md" width="36" height="36" decoding="async" />
                 </button>
 
                 {/* Desktop Navigation Links */}
@@ -344,6 +344,10 @@ export function Navbar({ onMenuClick }) {
                                 src={profile.avatar_url}
                                 alt="Avatar"
                                 className="w-8 h-8 rounded-full object-cover shadow-lg shadow-primary/20"
+                                loading="lazy"
+                                decoding="async"
+                                width="32"
+                                height="32"
                             />
                         ) : (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-wine flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">

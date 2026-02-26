@@ -151,7 +151,7 @@ export default function ReadingMode() {
                 )}>
                     <div className="relative w-48 h-72 md:w-64 md:h-96 rounded-r-2xl rounded-l-md shadow-2xl bg-white/5 border-l-4 border-white/10 flex items-center justify-center overflow-hidden mb-8 group">
                         {book.cover_url ? (
-                            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" loading="eager" decoding="async" width="256" height="384" />
                         ) : (
                             <BookOpen className="w-16 h-16 text-text-muted" />
                         )}

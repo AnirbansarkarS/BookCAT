@@ -69,7 +69,7 @@ function Avatar({ name = '?', src, size = 'md', dot }) {
     return (
         <div className="relative flex-shrink-0">
             {src
-                ? <img src={src} alt={name} className={cn(sz[size], 'rounded-full object-cover ring-2 ring-white/10')} />
+                ? <img src={src} alt={name} className={cn(sz[size], 'rounded-full object-cover ring-2 ring-white/10')} loading="lazy" decoding="async" width="40" height="40" />
                 : <div className={cn(sz[size], 'rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center font-bold text-white ring-2 ring-white/10 select-none')}>
                     {name[0].toUpperCase()}
                 </div>
@@ -346,7 +346,7 @@ function RequestBookModal({ isOpen, onClose, friend, targetBook }) {
                             <div className="flex gap-3 p-3 bg-white/[0.04] border border-white/[0.07] rounded-xl">
                                 <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
                                     {targetBook?.cover_url
-                                        ? <img src={targetBook.cover_url} alt={targetBook.title} className="w-full h-full object-cover" />
+                                        ? <img src={targetBook.cover_url} alt={targetBook.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="40" height="56" />
                                         : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-text-muted" /></div>}
                                 </div>
                                 <div className="min-w-0">
@@ -384,7 +384,7 @@ function RequestBookModal({ isOpen, onClose, friend, targetBook }) {
                                             )}>
                                             <div className="w-8 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
                                                 {b.cover_url
-                                                    ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" />
+                                                    ? <img src={b.cover_url} alt={b.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="32" height="40" />
                                                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={10} className="text-text-muted" /></div>}
                                             </div>
                                             <div className="min-w-0">
@@ -597,7 +597,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
                             <div className="flex gap-3 p-3">
                                 <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-white/5 ring-1 ring-white/10">
                                     {book.cover_url
-                                        ? <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                                        ? <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" loading="lazy" decoding="async" width="40" height="56" />
                                         : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-violet-500/20">
                                             <BookOpen className="w-4 h-4 text-primary/60" />
                                         </div>
