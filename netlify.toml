@@ -9,14 +9,29 @@
   # Use Node.js 18+ for better compatibility
   NODE_VERSION = "18"
 
+# Serve the real manifest.json file directly (must come BEFORE the SPA catch-all)
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+  force = true
+
 # Serve manifest.json for .webmanifest requests
 [[redirects]]
   from = "/manifest.webmanifest"
   to = "/manifest.json"
   status = 200
+  force = true
 
 # Handle SPA routing - this is the most important part for fixing 404s
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Correct MIME type for the manifest
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=0, must-revalidate"

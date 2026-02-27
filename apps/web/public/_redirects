@@ -1,3 +1,6 @@
+# Serve manifest.json directly (must come BEFORE the SPA catch-all)
+/manifest.json         /manifest.json  200
+
 # Serve manifest.json for .webmanifest requests
 /manifest.webmanifest  /manifest.json  200
 
