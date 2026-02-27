@@ -89,16 +89,17 @@ export default function Login() {
   React.useEffect(() => {
     const isDesktop = window.innerWidth >= 768 // md breakpoint
     if (isDragging && isDesktop) {
+      const nonPassiveTouch = { passive: false }
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
-      window.addEventListener('touchmove', handleMouseMove)
-      window.addEventListener('touchend', handleMouseUp)
+      window.addEventListener('touchmove', handleMouseMove, nonPassiveTouch)
+      window.addEventListener('touchend', handleMouseUp, nonPassiveTouch)
       
       return () => {
         window.removeEventListener('mousemove', handleMouseMove)
         window.removeEventListener('mouseup', handleMouseUp)
-        window.removeEventListener('touchmove', handleMouseMove)
-        window.removeEventListener('touchend', handleMouseUp)
+        window.removeEventListener('touchmove', handleMouseMove, nonPassiveTouch)
+        window.removeEventListener('touchend', handleMouseUp, nonPassiveTouch)
       }
     }
   }, [isDragging, ropeStretch, startY, lampOn])
