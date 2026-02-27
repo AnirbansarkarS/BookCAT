@@ -1,0 +1,17 @@
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# SPA fallback — Netlify serves index.html for all unknown routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -23,7 +23,13 @@ export default defineConfig({
                 clientsClaim: true,
                 skipWaiting: true,
                 navigateFallback: '/index.html',
-                navigateFallbackDenylist: [/^\/api/],
+                // Exclude API routes AND the manifest so the SW never intercepts
+                // them and returns HTML instead of JSON
+                navigateFallbackDenylist: [
+                    /^\/api/,
+                    /^\/manifest\.json$/,
+                    /^\/manifest\.webmanifest$/,
+                ],
             },
             devOptions: {
                 // Enable SW in dev so you can verify in DevTools without a full build
