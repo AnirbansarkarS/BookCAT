@@ -1,2 +1,5 @@
+# Serve manifest.json for .webmanifest requests
+/manifest.webmanifest  /manifest.json  200
+
 # Handle client-side routing for React SPA
 /*    /index.html   200

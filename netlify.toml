@@ -9,6 +9,12 @@
   # Use Node.js 18+ for better compatibility
   NODE_VERSION = "18"
 
+# Serve manifest.json for .webmanifest requests
+[[redirects]]
+  from = "/manifest.webmanifest"
+  to = "/manifest.json"
+  status = 200
+
 # Handle SPA routing - this is the most important part for fixing 404s
 [[redirects]]
   from = "/*"
