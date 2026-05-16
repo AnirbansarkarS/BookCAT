@@ -31,14 +31,13 @@
 
 ## 🎥 Demo
 
-> **Live Demo:** [https://your-bookcat-app.netlify.app](https://your-bookcat-app.netlify.app) _(Replace with your actual deployed URL)_
+**Live Demo:** https://bookcatq.netlify.app/
 
-<!-- 
-Uncomment and add a demo GIF or video:
 <div align="center">
-  <img src="demo.gif" alt="BookCat Demo" width="800" />
+
+  <img src="demo_vid.mov" alt="BookCat Demo" width="800" />
+
 </div>
--->
 
 **Quick Start:** Create an account, add your first book via ISBN scan or manual entry, and start tracking your reading journey!
 
@@ -46,19 +45,33 @@ Uncomment and add a demo GIF or video:
 
 ## 📸 Screenshots
 
-> _Replace the placeholders below with actual screenshots from your deployed app._
+<!--
 
 | Dashboard | Library |
+
 |-----------|---------|
+
 | ![Dashboard](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Dashboard) | ![Library](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Library) |
 
 | Reading Mode | Stats |
+
 |--------------|-------|
+
 | ![Reading Mode](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Reading+Mode) | ![Stats](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Stats) |
 
 | Community | Discover |
+
 |-----------|----------|
+
 | ![Community](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Community) | ![Discover](https://via.placeholder.com/600x360/1a1a2e/6366f1?text=Discover) |
+
+-->
+
+<div align="center">
+
+  <img src="hero.png" alt="BookCat Screenshot" width="900" />
+
+</div>
 
 ---
 
