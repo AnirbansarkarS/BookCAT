@@ -13,7 +13,7 @@
     },
     "devDependencies": {
         "prettier": "latest",
-        "turbo": "latest"
+        "turbo": "^2.9.14"
     },
     "packageManager": "npm@10.0.0",
     "dependencies": {
