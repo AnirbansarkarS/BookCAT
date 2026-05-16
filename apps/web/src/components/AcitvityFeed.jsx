@@ -69,7 +69,7 @@ export default function ActivityFeed() {
 
     return (
         <div className="space-y-3">
-            <h2 className="text-lg font-bold text-white">Activity Feed</h2>
+            <h2 className="text-lg font-bold text-text-primary">Activity Feed</h2>
             
             {activities.length === 0 ? (
                 <p className="text-text-muted text-sm py-8 text-center">
@@ -83,10 +83,10 @@ export default function ActivityFeed() {
                     return (
                         <div
                             key={activity.id}
-                            className="flex gap-3 p-3 bg-surface border border-white/5 rounded-xl hover:border-white/10 transition-colors"
+                            className="flex gap-3 p-3 bg-surface border border-border-subtle rounded-xl hover:border-white/10 transition-colors"
                         >
                             {/* Avatar */}
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
                                 {(activity.username || 'U')[0].toUpperCase()}
                             </div>
 
@@ -94,7 +94,7 @@ export default function ActivityFeed() {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
                                     <div>
-                                        <p className="text-sm text-white">
+                                        <p className="text-sm text-text-primary">
                                             <span className="font-semibold">
                                                 {activity.username || 'Someone'}
                                             </span>
@@ -128,7 +128,7 @@ export default function ActivityFeed() {
                                             height="48"
                                         />
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium text-white truncate">
+                                            <p className="text-xs font-medium text-text-primary truncate">
                                                 {activity.book_title}
                                             </p>
                                             <p className="text-[10px] text-text-muted truncate">
