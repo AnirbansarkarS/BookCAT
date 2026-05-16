@@ -18,14 +18,17 @@
   /* Deep Navy */
 
   /* Background Colors */
-  --color-background: #0f111a;
-  --color-surface: #1e202e;
-  --color-surface-elevated: #2a2d3d;
+  --color-background: #090B10;
+  --color-surface: #141724;
+  --color-surface-elevated: #1F2436;
 
   /* Text Colors */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+
+  /* Border Colors */
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
 
   /* Additional Red Shades */
   --color-wine: #800016;
