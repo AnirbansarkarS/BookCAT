@@ -26,6 +26,62 @@ const PageLoader = () => (
   </div>
 )
 
+// Inner app that lives inside BrowserRouter so it can read the current URL
+// even while the splash screen is showing. This ensures that when the splash
+// finishes the router already knows the originally-requested path and won't
+// redirect the user to /discover on refresh.
+function AppRoutes({ splashDone }) {
+  if (!splashDone) {
+    // While splash is playing, render nothing from the router — the splash
+    // component is rendered by its parent. We mount the router early so that
+    // the URL is preserved in router state.
+    return null
+  }
+
+  return (
+    <motion.div
+      key="app"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      style={{ minHeight: '100vh' }}
+    >
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/discover" replace />} />
+            <Route path="discover" element={<Suspense fallback={<PageLoader />}><Discover /></Suspense>} />
+            <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+            <Route path="library" element={<Suspense fallback={<PageLoader />}><Library /></Suspense>} />
+            <Route path="stats" element={<Suspense fallback={<PageLoader />}><Stats /></Suspense>} />
+            <Route path="community" element={<Suspense fallback={<PageLoader />}><Community /></Suspense>} />
+            <Route path="exchange" element={<Suspense fallback={<PageLoader />}><Exchange /></Suspense>} />
+            <Route path="profile" element={<Suspense fallback={<PageLoader />}><Profile /></Suspense>} />
+            <Route path="quiz" element={<Suspense fallback={<PageLoader />}><Quiz /></Suspense>} />
+            <Route path="read/:bookId" element={<Suspense fallback={<PageLoader />}><ReadingMode /></Suspense>} />
+            <Route
+              path="*"
+              element={<div className="p-10 text-white">Page not found</div>}
+            />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </motion.div>
+  )
+}
+
 function App() {
   const [splashDone, setSplashDone] = useState(false)
 
@@ -34,7 +90,9 @@ function App() {
   }, [])
 
   return (
-    <>
+    // BrowserRouter wraps everything so the router is aware of the real URL
+    // from the very first render — before the splash screen finishes.
+    <BrowserRouter>
       {/* ── Cinematic splash intro ── */}
       <AnimatePresence>
         {!splashDone && (
@@ -42,54 +100,11 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* ── Main application ── */}
+      {/* ── Main application (shown after splash) ── */}
       <AnimatePresence>
-        {splashDone && (
-          <motion.div
-            key="app"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            style={{ minHeight: '100vh' }}
-          >
-            <AuthProvider>
-              <BrowserRouter>
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-
-                  {/* Protected Routes */}
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route index element={<Navigate to="/discover" replace />} />
-                    <Route path="discover" element={<Suspense fallback={<PageLoader />}><Discover /></Suspense>} />
-                    <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
-                    <Route path="library" element={<Suspense fallback={<PageLoader />}><Library /></Suspense>} />
-                    <Route path="stats" element={<Suspense fallback={<PageLoader />}><Stats /></Suspense>} />
-                    <Route path="community" element={<Suspense fallback={<PageLoader />}><Community /></Suspense>} />
-                    <Route path="exchange" element={<Suspense fallback={<PageLoader />}><Exchange /></Suspense>} />
-                    <Route path="profile" element={<Suspense fallback={<PageLoader />}><Profile /></Suspense>} />
-                    <Route path="quiz" element={<Suspense fallback={<PageLoader />}><Quiz /></Suspense>} />
-                    <Route path="read/:bookId" element={<Suspense fallback={<PageLoader />}><ReadingMode /></Suspense>} />
-                    <Route
-                      path="*"
-                      element={<div className="p-10 text-white">Page not found</div>}
-                    />
-                  </Route>
-                </Routes>
-              </BrowserRouter>
-            </AuthProvider>
-          </motion.div>
-        )}
+        <AppRoutes splashDone={splashDone} />
       </AnimatePresence>
-    </>
+    </BrowserRouter>
   )
 }
 
