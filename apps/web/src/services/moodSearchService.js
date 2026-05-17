@@ -227,19 +227,94 @@ Return the top ${topN} books only. No markdown fences, no explanation — just t
 }
 
 // ═══════════════════════════════════════════════════════════
+// Mood classifier helper
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Classifies user mood input into structured metadata.
+ *
+ * @param {string} userInput
+ * @returns {Promise<{
+ *   genre: string,
+ *   tone: string,
+ *   pace: string,
+ *   complexity: string,
+ *   themes: string[]
+ * } | null>}
+ */
+export async function classifyMoodInput(userInput) {
+  if (!GEMINI_API_KEY) return null;
+
+  const prompt = `You are a literary mood classifier. Given a user's reading request, extract structured dimensions.
+
+Return ONLY a valid JSON object with exactly these fields:
+{
+  "genre": "<primary genre: fiction|mystery|thriller|romance|sci-fi|fantasy|horror|non-fiction|historical|self-help|biography>",
+  "tone": "<emotional tone: cozy|dark|uplifting|melancholic|thrilling|funny|inspiring|tense|whimsical|serious>",
+  "pace": "<reading pace: slow|medium|fast>",
+  "complexity": "<reading complexity: light|moderate|dense>",
+  "themes": ["<theme1>", "<theme2>"]
+}
+
+No markdown, no explanation. Just the JSON object.
+
+Input: "${userInput}"
+Output:`;
+
+  try {
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 150,
+        },
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+
+    let raw =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+    raw = raw
+      .replace(/```json\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Mood classification failed:', err);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // Full pipeline helper
 // ═══════════════════════════════════════════════════════════
 
 /**
- * End-to-end mood search: intent → query → Google Books → AI rank.
+ * End-to-end mood search:
+ * intent → query → Google Books → AI ranking
  *
- * @param {string} userInput  freeform mood / reading request
+ * @param {string} userInput
  * @param {{ maxResults?: number, topN?: number }} opts
- * @returns {Promise<{ query: string, allResults: Array, ranked: Array }>}
+ * @returns {Promise<{
+ *   query: string,
+ *   allResults: Array,
+ *   ranked: Array
+ * }>}
  */
 export async function moodSearch(userInput, { maxResults = 10, topN = 5 } = {}) {
-  // Step 1 – LLM converts intent to search query
-  const query = await transformUserIntentToGoogleQuery(userInput);
+  // Pass 0 + Pass 1 run in parallel — classifier enriches the prompt context
+  const [moodProfile, query] = await Promise.all([
+    classifyMoodInput(userInput),
+    transformUserIntentToGoogleQuery(userInput),
+  ]);
 
   // Step 2 – Google Books API
   const allResults = await searchGoogleBooks(query, maxResults);
@@ -247,5 +322,58 @@ export async function moodSearch(userInput, { maxResults = 10, topN = 5 } = {}) 
   // Step 3 – AI re-ranking
   const ranked = await rankBooksByRelevance(userInput, allResults, topN);
 
-  return { query, allResults, ranked };
+  return { query, moodProfile, allResults, ranked };
+}
+
+// ═══════════════════════════════════════════════════════════
+// Book Chatbot — conversational book knowledge assistant
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Sends a message to the book chatbot and returns a response.
+ * @param {Array<{role: 'user'|'model', text: string}>} history
+ * @param {string} newMessage
+ * @returns {Promise<string>}
+ */
+export async function chatWithBookBot(history, newMessage) {
+  if (!GEMINI_API_KEY) return "Gemini API key not set.";
+
+  const systemContext = `You are BookBot, an expert literary assistant for the BookCat app. You have deep knowledge of:
+- Books across all genres (fiction, non-fiction, mystery, sci-fi, fantasy, romance, horror, etc.)
+- Authors, their writing styles, and bibliographies
+- Plot summaries, themes, and literary analysis
+- Book recommendations based on mood, preferences, and reading history
+- Publishing history, awards (Booker, Pulitzer, Hugo, Nebula, etc.)
+- Reading tips, book clubs, and literary culture
+
+Personality: warm, enthusiastic about books, concise but insightful. Never make up books that don't exist.
+If asked for recommendations, always suggest real, well-known titles with author names.
+Keep responses under 200 words unless a detailed analysis is requested.`;
+
+  const contents = [
+    { role: 'user', parts: [{ text: systemContext + '\n\nLet\'s chat about books!' }] },
+    { role: 'model', parts: [{ text: "Hi! I'm BookBot 📚 Your literary companion on BookCat. Ask me anything — recommendations, author info, plot questions, or just what to read next!" }] },
+    ...history.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }],
+    })),
+    { role: 'user', parts: [{ text: newMessage }] },
+  ];
+
+  try {
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+      }),
+    });
+    if (!res.ok) return "Sorry, I couldn't connect right now. Try again!";
+    const data = await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Hmm, no response. Try again!";
+  } catch (err) {
+    console.error('BookBot error:', err);
+    return "Something went wrong. Please try again!";
+  }
 }

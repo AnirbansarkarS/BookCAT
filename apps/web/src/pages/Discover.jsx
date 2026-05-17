@@ -11,7 +11,7 @@ import { cn } from '../lib/utils';
 import { getActiveReaders, getDailyQuiz, submitQuizAnswer, getUserQuizAnswer, triggerQuizGeneration } from '../services/discoverService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
 import { getWeeklyTrendingBooks, triggerNYTFetch } from '../services/weeklyTrendingService';
-import { moodSearch } from '../services/moodSearchService';
+import { moodSearch, chatWithBookBot } from '../services/moodSearchService';
 import { getTodayHotTakes, triggerHotTakesGeneration, voteOnHotTake, getUserVotes } from '../services/hotTakesService';
 import { supabase } from '../lib/supabase';
 
@@ -58,6 +58,13 @@ export default function Discover() {
     const [hotTakesLoading, setHotTakesLoading] = useState(true);
     const [generatingTakes, setGeneratingTakes] = useState(false);
     const [userVotes, setUserVotes] = useState({});
+
+    // BookBot Chatbot state
+    const [chatOpen, setChatOpen]         = useState(false);
+    const [chatHistory, setChatHistory]   = useState([]);
+    const [chatInput, setChatInput]       = useState('');
+    const [chatLoading, setChatLoading]   = useState(false);
+    const chatBottomRef = useRef(null);
 
     // Active Readers state (realtime from Supabase)
     const [activeReaders, setActiveReaders] = useState([]);
@@ -289,6 +296,19 @@ export default function Discover() {
         moodInputRef.current?.focus();
     };
 
+    const handleChatSend = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+    const userMsg = { role: 'user', text: msg };
+    setChatHistory(prev => [...prev, userMsg]);
+    setChatInput('');
+    setChatLoading(true);
+    const reply = await chatWithBookBot(chatHistory, msg);
+    setChatHistory(prev => [...prev, { role: 'model', text: reply }]);
+    setChatLoading(false);
+    setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    };
+
     const MOOD_SUGGESTIONS = [
         'Something cozy and comforting',
         'A dark psychological thriller',
@@ -409,14 +429,36 @@ export default function Discover() {
                 {/* Results */}
                 {moodResults && (
                     <div className="space-y-4">
-                        {/* Generated query badge */}
-                        {moodQuery && (
-                            <div className="flex items-center gap-2 text-xs text-text-muted">
-                                <Sparkles className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
-                                <span>AI search query:</span>
-                                <code className="bg-white/5 px-2 py-0.5 rounded text-pink-300 font-mono text-[11px]">{moodQuery}</code>
-                            </div>
-                        )}
+                        {/* Mood profile + query badge */}
+{(moodQuery || moodResults?.moodProfile) && (
+    <div className="space-y-2">
+        {moodResults?.moodProfile && (
+            <div className="flex flex-wrap items-center gap-2">
+                <Brain className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                <span className="text-xs text-text-muted">Mood profile:</span>
+                {[
+                    { label: moodResults.moodProfile.genre, color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+                    { label: moodResults.moodProfile.tone, color: 'bg-pink-500/20 text-pink-300 border-pink-500/30' },
+                    { label: `${moodResults.moodProfile.pace} pace`, color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+                    { label: moodResults.moodProfile.complexity, color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+                    ...(moodResults.moodProfile.themes || []).map(t => ({ label: t, color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' })),
+                ].filter(d => d.label).map((dim, i) => (
+                    <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${dim.color}`}>
+                        {dim.label}
+                    </span>
+                ))}
+            </div>
+        )}
+        {moodQuery && (
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+                <Sparkles className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
+                <span>AI query:</span>
+                <code className="bg-white/5 px-2 py-0.5 rounded text-pink-300 font-mono text-[11px] truncate max-w-xs">{moodQuery}</code>
+            </div>
+        )}
+    </div>
+)}
+                        
 
                         {/* AI-Ranked Top Picks */}
                         {moodResults.ranked.length > 0 && (
@@ -1119,6 +1161,85 @@ export default function Discover() {
                     <p className="text-sm text-text-muted">Hours Read This Week</p>
                 </div>
             </div>
+            {/* ── BookBot Floating Chatbot ── */}
+<div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    {chatOpen && (
+        <div className="w-80 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ height: '420px' }}>
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-pink-600 flex-shrink-0">
+                <BookOpen className="w-4 h-4 text-white" />
+                <span className="text-white font-semibold text-sm flex-1">BookBot</span>
+                <span className="text-white/60 text-[10px]">Powered by Gemini</span>
+                <button onClick={() => setChatOpen(false)} className="text-white/70 hover:text-white ml-2">
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                {chatHistory.length === 0 && (
+                    <div className="text-center pt-4">
+                        <BookOpen className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-40" />
+                        <p className="text-xs text-text-muted">Hi! I'm BookBot 📚<br />Ask me anything about books!</p>
+                        <div className="mt-3 flex flex-col gap-1.5">
+                            {["Recommend a book like Dune", "Who wrote 1984?", "Best thrillers of 2024"].map(q => (
+                                <button key={q} onClick={() => { setChatInput(q); }}
+                                    className="text-[11px] text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-lg px-2 py-1.5 hover:bg-violet-500/20 transition-all text-left">
+                                    {q}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {chatHistory.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] text-xs px-3 py-2 rounded-xl leading-relaxed ${
+                            msg.role === 'user'
+                                ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-br-none'
+                                : 'bg-white/5 text-white/90 border border-white/10 rounded-bl-none'
+                        }`}>
+                            {msg.text}
+                        </div>
+                    </div>
+                ))}
+                {chatLoading && (
+                    <div className="flex justify-start">
+                        <div className="bg-white/5 border border-white/10 rounded-xl rounded-bl-none px-3 py-2 flex gap-1">
+                            <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                            <div className="w-1.5 h-1.5 bg-pink-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                            <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                        </div>
+                    </div>
+                )}
+                <div ref={chatBottomRef} />
+            </div>
+            {/* Input */}
+            <div className="flex gap-2 p-3 border-t border-white/10 flex-shrink-0">
+                <input
+                    type="text"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+                    placeholder="Ask about any book..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-text-muted focus:outline-none focus:border-violet-500/50"
+                />
+                <button
+                    onClick={handleChatSend}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="p-2 bg-gradient-to-r from-violet-500 to-pink-500 rounded-lg text-white disabled:opacity-40 transition-all"
+                >
+                    <Zap className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        </div>
+    )}
+    {/* Toggle button */}
+    <button
+        onClick={() => setChatOpen(o => !o)}
+        className="w-14 h-14 rounded-full bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-lg shadow-violet-500/30 flex items-center justify-center hover:scale-105 transition-all"
+    >
+        {chatOpen ? <X className="w-6 h-6" /> : <BookOpen className="w-6 h-6" />}
+    </button>
+</div>
         </div>
     );
 }
