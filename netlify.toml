@@ -1,9 +1,13 @@
-# Build settings are managed in the Netlify UI to avoid conflicts with the monorepo
-# Package directory setting (apps/web).
-# Only redirect rules are defined here — they are always read from the repo root.
+[build]
+  # Install from repo root (resolves workspaces), then run Vite directly.
+  # Using 'npx vite build' bypasses turbo entirely — no turbo.json needed.
+  command = "npm install && cd apps/web && npx vite build"
+  publish = "apps/web/dist"
 
-# SPA catch-all redirect: rewrites all paths to index.html so React Router works.
-# Status 200 = rewrite (not HTTP redirect) — the URL stays the same in the browser.
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA catch-all: rewrite every path to index.html so React Router handles routing.
 [[redirects]]
   from = "/*"
   to = "/index.html"
