@@ -16,20 +16,44 @@ export default function Login() {
   const [isDragging, setIsDragging] = useState(false)
   const [startY, setStartY] = useState(0)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+ const handleSubmit = async (e) => {
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-    const { error: signInError } = await signIn(email, password)
+  const { error: signInError } = await signIn(email, password)
 
-    if (signInError) {
-      setError(signInError.message)
-      setLoading(false)
-    } else {
-      navigate('/dashboard')
+  if (signInError) {
+    console.log(signInError) // optional: check actual Supabase error
+
+    let errorMessage = 'Login failed. Please try again.'
+
+    // Unregistered email / account not found
+    if (
+      signInError.status === 404 ||
+      signInError.message?.toLowerCase().includes('user not found')
+    ) {
+      errorMessage =
+        'No account found with this email. Please sign up first.'
     }
+
+    // Wrong password / invalid credentials
+    else if (
+      signInError.message
+        ?.toLowerCase()
+        .includes('invalid login credentials')
+    ) {
+      errorMessage =
+        'Incorrect email or password. Please try again.'
+    }
+
+    setError(errorMessage)
+    setLoading(false)
+    return
   }
+
+  navigate('/dashboard')
+}
 
   const handleLampPull = () => {
     setPulling(true)
