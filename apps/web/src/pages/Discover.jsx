@@ -277,15 +277,15 @@ export default function Discover() {
         setMoodQuery('');
 
         try {
-            const { query, allResults, ranked } = await moodSearch(input, { maxResults: 10, topN: 5 });
-            setMoodQuery(query);
-            setMoodResults({ ranked, allResults });
-        } catch (err) {
-            console.error('Mood search error:', err);
-            setMoodError('Something went wrong. Please try again.');
-        } finally {
-            setMoodSearching(false);
-        }
+    const { query, allResults, ranked, moodProfile } = await moodSearch(input, { maxResults: 10, topN: 5 });
+    setMoodQuery(query);
+    setMoodResults({ ranked, allResults, moodProfile });
+} catch (err) {
+    console.error('Mood search error:', err);
+    setMoodError('Something went wrong. Please try again.');
+} finally {
+    setMoodSearching(false);
+}
     };
 
     const clearMoodSearch = () => {
@@ -372,7 +372,7 @@ export default function Discover() {
                             type="submit"
                             disabled={!moodInput.trim() || moodSearching}
                             className={cn(
-                                "flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap",
+    "flex items-center gap-2 px-3 sm:px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap",
                                 moodSearching
                                     ? "bg-pink-500/30 text-pink-200 cursor-not-allowed"
                                     : moodInput.trim()
@@ -453,7 +453,7 @@ export default function Discover() {
             <div className="flex items-center gap-2 text-xs text-text-muted">
                 <Sparkles className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
                 <span>AI query:</span>
-                <code className="bg-white/5 px-2 py-0.5 rounded text-pink-300 font-mono text-[11px] truncate max-w-xs">{moodQuery}</code>
+                <code className="bg-white/5 px-2 py-0.5 rounded text-pink-300 font-mono text-[11px] truncate max-w-[160px] sm:max-w-xs"></code>
             </div>
         )}
     </div>
@@ -1144,7 +1144,7 @@ export default function Discover() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gradient-to-br from-primary/10 to-violet-500/10 border border-primary/20 rounded-2xl p-6 text-center">
                     <BookOpen className="w-8 h-8 text-primary mx-auto mb-3" />
                     <div className="text-3xl font-bold text-white mb-1">2,845</div>
@@ -1162,9 +1162,9 @@ export default function Discover() {
                 </div>
             </div>
             {/* ── BookBot Floating Chatbot ── */}
-<div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+<div className="w-[calc(100vw-3rem)] sm:w-80 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ height: '420px' }}>
     {chatOpen && (
-        <div className="w-80 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ height: '420px' }}>
+        <div className="w-[calc(100vw-3rem)] sm:w-80 bg-surface border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ height: '420px' }}>
             {/* Header */}
             <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-pink-600 flex-shrink-0">
                 <BookOpen className="w-4 h-4 text-white" />
