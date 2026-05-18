@@ -126,7 +126,6 @@ Uncomment and add a demo GIF or video:
 - Public profile page
 
 ---
-
 ## 🛠 Tech Stack
 
 | Layer | Technology |
@@ -195,7 +194,6 @@ BookCAT/                          # Monorepo root
 ├── turbo.json
 └── package.json
 ```
-
 ---
 
 ## 🚀 Getting Started
@@ -246,7 +244,7 @@ Edit `apps/web/.env` and fill in your credentials (see [Environment Variables](#
 4. Run each migration file in order from `supabase/migrations/`:
    - `001_auth_setup.sql`
    - `002_books_table.sql`
-   - ... through `016_community_tables.sql`
+   - .through `016_community_tables.sql`
 
 #### Option B: Using Supabase CLI (Recommended)
 
