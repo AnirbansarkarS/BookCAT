@@ -31,7 +31,7 @@
 
 ## 🎥 Demo
 
-> **Live Demo:** [https://your-bookcat-app.netlify.app](https://your-bookcat-app.netlify.app) _(Replace with your actual deployed URL)_
+> **Live Demo:** [https://your-bookcat-app.netlify.app]([(https://bookcatq.netlify.app/)) _(Replace with your actual deployed URL)_
 
 <!-- 
 Uncomment and add a demo GIF or video:
