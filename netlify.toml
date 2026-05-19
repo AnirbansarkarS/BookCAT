@@ -1,8 +1,8 @@
 [build]
-  # Install from repo root (resolves workspaces), then run Vite directly.
-  # Using 'npx vite build' bypasses turbo entirely — no turbo.json needed.
-  command = "npm install && cd apps/web && npx vite build"
+  command = "npm install --legacy-peer-deps && npm --prefix apps/web run build"
   publish = "apps/web/dist"
+  base = "."
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22"
