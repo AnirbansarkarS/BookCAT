@@ -1,13 +1,9 @@
-[build]
-  command = "npm install --legacy-peer-deps && npm --prefix apps/web run build"
-  publish = "apps/web/dist"
-  base = "."
-  functions = "netlify/functions"
+# Build settings are managed in the Netlify UI to avoid conflicts with the monorepo
+# Package directory setting (apps/web).
+# Only redirect rules are defined here — they are always read from the repo root.
 
-[build.environment]
-  NODE_VERSION = "22"
-
-# SPA catch-all: rewrite every path to index.html so React Router handles routing.
+# SPA catch-all redirect: rewrites all paths to index.html so React Router works.
+# Status 200 = rewrite (not HTTP redirect) — the URL stays the same in the browser.
 [[redirects]]
   from = "/*"
   to = "/index.html"
