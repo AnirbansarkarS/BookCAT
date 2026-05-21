@@ -79,18 +79,64 @@ export const getFriends = async (userId) => {
 
 export const sendFriendRequest = async (userId, friendId) => {
     try {
-        const { data: existing } = await supabase.from('friendships').select('*')
-            .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`)
+        // Prevent adding yourself
+        if (userId === friendId) {
+            return {
+                data: null,
+                error: { message: 'You cannot add yourself' }
+            };
+        }
+
+        // Check if friendship/request already exists
+        const { data: existing, error: existingError } = await supabase
+            .from('friendships')
+            .select('*')
+            .or(
+                `and(user_id.eq.${userId},friend_id.eq.${friendId}),
+                 and(user_id.eq.${friendId},friend_id.eq.${userId})`
+            );
+
+        if (existingError) {
+            throw existingError;
+        }
+
+        // Prevent duplicate requests
+        if (existing && existing.length > 0) {
+            return {
+                data: existing[0],
+                error: null
+            };
+        }
+
+        // Create new friend request
+        const { data, error } = await supabase
+            .from('friendships')
+            .insert([
+                {
+                    user_id: userId,
+                    friend_id: friendId,
+                    status: 'pending'
+                }
+            ])
+            .select()
             .single();
-        if (existing) return { data: existing, error: null };
-        const { data, error } = await supabase.from('friendships')
-            .insert([{ user_id: userId, friend_id: friendId, status: 'pending' }])
-            .select().single();
-        if (error) throw error;
-        return { data, error: null };
+
+        if (error) {
+            throw error;
+        }
+
+        return {
+            data,
+            error: null
+        };
+
     } catch (error) {
         console.error('Error sending friend request:', error);
-        return { data: null, error };
+
+        return {
+            data: null,
+            error
+        };
     }
 };
 
