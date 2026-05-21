@@ -3,7 +3,7 @@ import { ArrowLeft, Play, Pause, Check, Clock, BookOpen, ChevronUp, ChevronDown,
 import { cn } from '../lib/utils';
 import { logReadingSession } from '../services/bookService';
 import { useAuth } from '../hooks/useAuth';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { eventBus, EVENTS } from '../utils/eventbus';
 import { statsCache } from '../utils/statsCache';
 import { logReadingSessionActivity } from '../services/activityService';
 
