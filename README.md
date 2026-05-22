@@ -31,7 +31,7 @@
 
 ## 🎥 Demo
 
-> **Live Demo:** [https://bookcatq.netlify.app/]
+> **Live Demo:** [https://book-cat-web.vercel.app/]
 
 <!-- 
 Uncomment and add a demo GIF or video:

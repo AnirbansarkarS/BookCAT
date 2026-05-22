@@ -251,7 +251,7 @@ VITE_NYT_API_KEY=your-nyt-key (optional)
 VITE_GEMINI_API_KEY=your-gemini-key (optional)
 
 # === App Config (optional) ===
-VITE_APP_URL=https://bookcatq.netlify.app
+VITE_APP_URL=https://book-cat-web.vercel.app
 ```
 
 ### Server Environment Variables (Supabase Edge Functions)
@@ -340,7 +340,7 @@ git push origin main
 
 ### Step 4: Verify Deployment
 
-- Check that the site loads: [https://bookcatq.netlify.app/](https://bookcatq.netlify.app/)
+- Check that the site loads: [https://book-cat-web.vercel.app/](https://book-cat-web.vercel.app/)
 - Test sign up and authentication
 - Check browser console for errors
 - Verify PWA service worker is registered
