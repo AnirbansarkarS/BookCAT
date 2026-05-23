@@ -10,10 +10,22 @@ export const getUserBooks = async (userId) => {
             .from('books')
             .select('*')
             .eq('user_id', userId)
-            .order('created_at', { ascending: false }); // ✅ NOT updated_at
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+
+        // Map encoded tags fields back into root properties for seamless UI usage
+        return (data || []).map(b => {
+            const extra = { rating: null, started_at: null, shelf_position: null };
+            if (b.tags && Array.isArray(b.tags)) {
+                b.tags.forEach(t => {
+                    if (t.startsWith('rating:')) extra.rating = parseFloat(t.split(':')[1]);
+                    if (t.startsWith('started:')) extra.started_at = t.substring(8);
+                    if (t.startsWith('pos:')) extra.shelf_position = parseInt(t.split(':')[1]);
+                });
+            }
+            return { ...b, ...extra };
+        });
     } catch (error) {
         console.error('Error fetching books:', error);
         return [];
@@ -61,28 +73,45 @@ export const updateBookDetails = async (bookId, updates) => {
 
         // Validate and clean updates
         const cleanUpdates = {};
-        
+
         if (updates.status !== undefined) {
             cleanUpdates.status = updates.status;
         }
-        
+
         if (updates.current_page !== undefined) {
             cleanUpdates.current_page = Math.max(0, Math.floor(Number(updates.current_page) || 0));
         }
-        
+
         if (updates.total_pages !== undefined) {
             cleanUpdates.total_pages = updates.total_pages ? Math.max(0, Math.floor(Number(updates.total_pages))) : null;
         }
-        
+
         if (updates.progress !== undefined) {
             cleanUpdates.progress = Math.min(100, Math.max(0, Math.floor(Number(updates.progress) || 0)));
         }
-        
-        if (updates.tags !== undefined) {
-            cleanUpdates.tags = Array.isArray(updates.tags) ? updates.tags : [];
+
+        const finalTags = new Set(Array.isArray(updates.tags) ? updates.tags : []);
+        // Remove old encoded tags
+        for (const t of finalTags) {
+            if (t.startsWith('rating:') || t.startsWith('started:') || t.startsWith('pos:')) {
+                finalTags.delete(t);
+            }
         }
 
-        // ✅ REMOVED: cleanUpdates.updated_at (column doesn't exist)
+        if (updates.rating !== undefined && updates.rating !== null) {
+            const r = parseFloat(updates.rating);
+            if (Number.isFinite(r)) finalTags.add(`rating:${Math.min(5, Math.max(0, r))}`);
+        }
+
+        if (updates.started_at) {
+            finalTags.add(`started:${updates.started_at}`);
+        }
+
+        if (updates.shelf_position !== undefined) {
+            finalTags.add(`pos:${updates.shelf_position}`);
+        }
+
+        cleanUpdates.tags = Array.from(finalTags);
 
         console.log('📝 Updating book:', bookId, cleanUpdates);
 
@@ -141,7 +170,7 @@ export const logReadingSession = async (userId, bookId, durationSeconds, pagesRe
         // Ensure duration is a valid positive integer (minimum 1 second)
         const validSeconds = Math.max(1, Math.floor(Number(durationSeconds) || 0));
         const validMinutes = Math.max(1, Math.round(validSeconds / 60));
-        
+
         // Ensure pages is a valid non-negative integer
         const validPages = Math.max(0, Math.floor(Number(pagesRead) || 0));
 
@@ -220,13 +249,13 @@ export const searchBooks = async (query) => {
         const response = await fetch(
             `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`
         );
-        
+
         if (!response.ok) {
             throw new Error('Failed to search books');
         }
 
         const data = await response.json();
-        
+
         return (data.items || []).map(item => ({
             google_id: item.id,
             title: item.volumeInfo.title,
@@ -246,7 +275,7 @@ export const searchBooks = async (query) => {
  */
 export const checkDuplicateISBN = async (userId, isbn) => {
     if (!isbn) return { exists: false, book: null };
-    
+
     try {
         const { data, error } = await supabase
             .from('books')

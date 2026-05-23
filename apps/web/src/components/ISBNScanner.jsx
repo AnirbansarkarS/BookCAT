@@ -24,9 +24,18 @@ export default function ISBNScanner({ onDetected, onClose }) {
                 setIsLoading(true);
                 setError(null);
 
+                // Attempt to get the rear camera
+                const devices = await codeReader.listVideoInputDevices();
+                const backCamera = devices.find(device =>
+                    device.label.toLowerCase().includes('back') ||
+                    device.label.toLowerCase().includes('rear') ||
+                    device.label.toLowerCase().includes('environment')
+                );
+                const deviceId = backCamera ? backCamera.deviceId : (devices.length > 0 ? devices[0].deviceId : undefined);
+
                 // Start decoding from video device
                 await codeReader.decodeFromVideoDevice(
-                    null, // Use default camera
+                    deviceId, // Use environment camera if found
                     videoRef.current,
                     (result, err) => {
                         if (result && !stopped) {

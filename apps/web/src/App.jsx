@@ -18,6 +18,7 @@ const ReadingMode = lazy(() => import('./pages/ReadingMode'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Stats = lazy(() => import('./pages/Stats'))
 const Quiz = lazy(() => import('./pages/Quiz'))
+const Wheel = lazy(() => import('./pages/Wheel'))
 
 // Minimal loading fallback for lazy routes
 const PageLoader = () => (
@@ -70,6 +71,7 @@ function AppRoutes({ splashDone }) {
             <Route path="exchange" element={<Suspense fallback={<PageLoader />}><Exchange /></Suspense>} />
             <Route path="profile" element={<Suspense fallback={<PageLoader />}><Profile /></Suspense>} />
             <Route path="quiz" element={<Suspense fallback={<PageLoader />}><Quiz /></Suspense>} />
+            <Route path="wheel" element={<Suspense fallback={<PageLoader />}><Wheel /></Suspense>} />
             <Route path="read/:bookId" element={<Suspense fallback={<PageLoader />}><ReadingMode /></Suspense>} />
             <Route
               path="*"

@@ -46,7 +46,7 @@ const STATUS = {
     finished: { label: 'Finished', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
     reading_now: { label: 'Reading', cls: 'text-sky-400    bg-sky-500/10    border-sky-500/20' },
     want_to_read: { label: 'Want to Read', cls: 'text-amber-400  bg-amber-500/10  border-amber-500/20' },
-    abandoned: { label: 'Abandoned', cls: 'text-slate-400  bg-slate-500/10  border-slate-500/20' },
+    abandoned: { label: 'Half Read', cls: 'text-slate-400  bg-slate-500/10  border-slate-500/20' },
     re_reading: { label: 'Re-reading', cls: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
 };
 
@@ -471,7 +471,7 @@ function FriendLibraryPanel({ friend, onClose, onOpenChat }) {
         { id: 'reading_now', label: 'Reading' },
         { id: 'finished', label: 'Done' },
         { id: 'want_to_read', label: 'Want' },
-        { id: 'abandoned', label: 'Dropped' },
+        { id: 'abandoned', label: 'Half Read' },
     ];
 
     const count = id => id === 'all' ? books.length : books.filter(b => bookStatus(b) === id).length;
@@ -695,6 +695,7 @@ export default function Community() {
     const [allUsers, setAllUsers] = useState([]);
     const [friends, setFriends] = useState([]);
     const [pendingIn, setPendingIn] = useState([]);
+    const [pendingOut, setPendingOut] = useState([]);
     const [activity, setActivity] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('discover');
@@ -715,6 +716,7 @@ export default function Community() {
             setAllUsers(users.filter(u => u.id !== user.id));
             setFriends(flist.filter(f => f.status === 'accepted'));
             setPendingIn(flist.filter(f => f.status === 'pending' && !f.is_sender));
+            setPendingOut(flist.filter(f => f.status === 'pending' && f.is_sender));
             setActivity(acts);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -741,7 +743,8 @@ export default function Community() {
 
     const statusOf = uid => {
         if (friends.some(f => f.friend_id === uid)) return 'accepted';
-        if (pendingIn.some(f => f.friend_id === uid)) return 'pending';
+        if (pendingIn.some(f => f.friend_id === uid)) return 'pending_in';
+        if (pendingOut.some(f => f.friend_id === uid)) return 'pending_out';
         return 'none';
     };
 
@@ -772,247 +775,249 @@ export default function Community() {
             )}
 
             <div className="flex gap-4 h-[calc(100vh-8rem)]">
-            {/* Left list */}
-            <div className={cn(
-                'flex flex-col gap-3 min-h-0 w-full transition-all duration-300',
-                panel ? 'lg:w-[360px] lg:flex-shrink-0' : 'lg:flex-1'
-            )}>
-                <div className="flex-shrink-0">
-                    <h1 className="text-xl font-bold text-white">Community</h1>
-                    <p className="text-xs text-text-muted mt-0.5">Connect with readers</p>
-                </div>
+                {/* Left list */}
+                <div className={cn(
+                    'flex flex-col gap-3 min-h-0 w-full transition-all duration-300',
+                    panel ? 'lg:w-[360px] lg:flex-shrink-0' : 'lg:flex-1'
+                )}>
+                    <div className="flex-shrink-0">
+                        <h1 className="text-xl font-bold text-white">Community</h1>
+                        <p className="text-xs text-text-muted mt-0.5">Connect with readers</p>
+                    </div>
 
-                <div className="flex gap-2 flex-wrap flex-shrink-0">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full text-xs text-sky-400">
-                        <span className="font-bold">{friends.length}</span> Friends
+                    <div className="flex gap-2 flex-wrap flex-shrink-0">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full text-xs text-sky-400">
+                            <span className="font-bold">{friends.length}</span> Friends
+                        </div>
+                        <div className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-xs',
+                            pendingIn.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/10 text-text-muted'
+                        )}>
+                            <span className="font-bold">{pendingIn.length}</span> Requests
+                        </div>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-xs text-violet-400">
+                            <span className="font-bold">{allUsers.length}</span> Readers
+                        </div>
                     </div>
-                    <div className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-xs',
-                        pendingIn.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/10 text-text-muted'
-                    )}>
-                        <span className="font-bold">{pendingIn.length}</span> Requests
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-xs text-violet-400">
-                        <span className="font-bold">{allUsers.length}</span> Readers
-                    </div>
-                </div>
 
-                {pendingIn.length > 0 && (
-                    <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-xl p-3 flex-shrink-0 space-y-2">
-                        <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
-                            <UserPlus size={12} /> Friend Requests ({pendingIn.length})
-                        </p>
-                        {pendingIn.map(r => (
-                            <div key={r.friendship_id} className="flex items-center gap-2.5 bg-black/20 rounded-lg px-3 py-2">
-                                <Avatar name={r.username || r.email} src={r.avatar_url} size="sm" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate">{r.username || 'Reader'}</p>
-                                    <p className="text-[10px] text-text-muted truncate">@{r.email?.split('@')[0]}</p>
+                    {pendingIn.length > 0 && (
+                        <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-xl p-3 flex-shrink-0 space-y-2">
+                            <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+                                <UserPlus size={12} /> Friend Requests ({pendingIn.length})
+                            </p>
+                            {pendingIn.map(r => (
+                                <div key={r.friendship_id} className="flex items-center gap-2.5 bg-black/20 rounded-lg px-3 py-2">
+                                    <Avatar name={r.username || r.email} src={r.avatar_url} size="sm" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-white truncate">{r.username || 'Reader'}</p>
+                                        <p className="text-[10px] text-text-muted truncate">@{r.email?.split('@')[0]}</p>
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        <button onClick={async () => { await acceptFriendRequest(r.friendship_id); load(); }}
+                                            className="p-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all active:scale-90">
+                                            <Check size={13} />
+                                        </button>
+                                        <button onClick={async () => { await removeFriend(r.friendship_id); load(); }}
+                                            className="p-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all active:scale-90">
+                                            <X size={13} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-1.5">
-                                    <button onClick={async () => { await acceptFriendRequest(r.friendship_id); load(); }}
-                                        className="p-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all active:scale-90">
-                                        <Check size={13} />
-                                    </button>
-                                    <button onClick={async () => { await removeFriend(r.friendship_id); load(); }}
-                                        className="p-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all active:scale-90">
-                                        <X size={13} />
-                                    </button>
-                                </div>
-                            </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex p-0.5 bg-white/[0.04] border border-white/[0.06] rounded-xl flex-shrink-0">
+                        {[
+                            { id: 'discover', icon: Search, label: 'Discover' },
+                            { id: 'friends', icon: Users, label: 'Friends' },
+                            { id: 'activity', icon: TrendingUp, label: 'Activity' },
+                        ].map(t => (
+                            <button key={t.id} onClick={() => setTab(t.id)}
+                                className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all',
+                                    tab === t.id ? 'bg-primary text-white shadow-md' : 'text-text-muted hover:text-white hover:bg-white/5')}>
+                                <t.icon size={12} />
+                                {t.label}
+                            </button>
                         ))}
                     </div>
-                )}
 
-                <div className="flex p-0.5 bg-white/[0.04] border border-white/[0.06] rounded-xl flex-shrink-0">
-                    {[
-                        { id: 'discover', icon: Search, label: 'Discover' },
-                        { id: 'friends', icon: Users, label: 'Friends' },
-                        { id: 'activity', icon: TrendingUp, label: 'Activity' },
-                    ].map(t => (
-                        <button key={t.id} onClick={() => setTab(t.id)}
-                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all',
-                                tab === t.id ? 'bg-primary text-white shadow-md' : 'text-text-muted hover:text-white hover:bg-white/5')}>
-                            <t.icon size={12} />
-                            {t.label}
-                        </button>
-                    ))}
-                </div>
-
-                {tab === 'discover' && (
-                    <div className="relative flex-shrink-0">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted/40" />
-                        <input type="text" value={q} onChange={e => setQ(e.target.value)}
-                            placeholder="Search readers…"
-                            className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-text-muted/40 outline-none focus:border-primary/40 transition-all"
-                        />
-                    </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-4">
                     {tab === 'discover' && (
-                        filtered.length === 0
-                            ? <p className="text-center text-text-muted text-sm py-10">No readers found</p>
-                            : filtered.map(u => {
-                                const st = statusOf(u.id);
-                                const fr = friends.find(f => f.friend_id === u.id);
-                                const isActive = active?.friend_id === u.id;
-                                return (
-                                    <div key={u.id} className={cn(
-                                        'border rounded-2xl p-3 transition-all',
-                                        isActive ? 'border-primary/40 bg-primary/[0.04]' : 'bg-white/[0.03] hover:bg-white/[0.055] border-white/[0.07]'
-                                    )}>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar name={u.username || u.email} src={u.avatar_url} dot={st === 'accepted' ? 'online' : undefined} />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-white text-sm truncate">{u.username || 'Reader'}</p>
-                                                <p className="text-[11px] text-text-muted truncate">@{u.email?.split('@')[0]}</p>
+                        <div className="relative flex-shrink-0">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted/40" />
+                            <input type="text" value={q} onChange={e => setQ(e.target.value)}
+                                placeholder="Search readers…"
+                                className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-text-muted/40 outline-none focus:border-primary/40 transition-all"
+                            />
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-4">
+                        {tab === 'discover' && (
+                            filtered.length === 0
+                                ? <p className="text-center text-text-muted text-sm py-10">No readers found</p>
+                                : filtered.map(u => {
+                                    const st = statusOf(u.id);
+                                    const fr = friends.find(f => f.friend_id === u.id);
+                                    const isActive = active?.friend_id === u.id;
+                                    return (
+                                        <div key={u.id} className={cn(
+                                            'border rounded-2xl p-3 transition-all',
+                                            isActive ? 'border-primary/40 bg-primary/[0.04]' : 'bg-white/[0.03] hover:bg-white/[0.055] border-white/[0.07]'
+                                        )}>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar name={u.username || u.email} src={u.avatar_url} dot={st === 'accepted' ? 'online' : undefined} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-white text-sm truncate">{u.username || 'Reader'}</p>
+                                                    <p className="text-[11px] text-text-muted truncate">@{u.email?.split('@')[0]}</p>
+                                                </div>
+                                                {st === 'accepted'
+                                                    ? <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 flex-shrink-0">
+                                                        <UserCheck size={9} /> Friends
+                                                    </span>
+                                                    : st === 'pending_in'
+                                                        ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
+                                                        : st === 'pending_out'
+                                                            ? <span className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20 flex-shrink-0">Requested</span>
+                                                            : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
+                                                                className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
+                                                                <UserPlus size={9} /> Add
+                                                            </button>
+                                                }
                                             </div>
-                                            {st === 'accepted'
-                                                ? <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 flex-shrink-0">
-                                                    <UserCheck size={9} /> Friends
+                                            <div className="flex gap-4 mt-2 px-0.5">
+                                                <span className="text-[11px] text-text-muted flex items-center gap-1">
+                                                    <BookOpen size={10} className="text-primary/60" /> {u.book_count || 0} books
                                                 </span>
-                                                : st === 'pending'
-                                                    ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
-                                                    : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
-                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
-                                                        <UserPlus size={9} /> Add
-                                                    </button>
-                                            }
-                                        </div>
-                                        <div className="flex gap-4 mt-2 px-0.5">
-                                            <span className="text-[11px] text-text-muted flex items-center gap-1">
-                                                <BookOpen size={10} className="text-primary/60" /> {u.book_count || 0} books
-                                            </span>
-                                            <span className="text-[11px] text-text-muted flex items-center gap-1">
-                                                <Clock size={10} className="text-violet-400/60" /> {u.total_reading_time || 0}h
-                                            </span>
-                                        </div>
-                                        {st === 'accepted' && fr && (
-                                            <div className="flex gap-2 mt-2.5 pt-2.5 border-t border-white/[0.05]">
-                                                <button onClick={() => openPanel('library', fr)}
-                                                    className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
-                                                        panel === 'library' && isActive ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
-                                                            : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border border-white/[0.07]')}>
-                                                    <Library size={11} /> Library
-                                                </button>
-                                                <button onClick={() => openPanel('chat', fr)}
-                                                    className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
-                                                        panel === 'chat' && isActive ? 'bg-primary text-white border border-primary/50 shadow-md shadow-primary/20'
-                                                            : 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20')}>
-                                                    <MessageSquare size={11} /> Chat
-                                                </button>
+                                                <span className="text-[11px] text-text-muted flex items-center gap-1">
+                                                    <Clock size={10} className="text-violet-400/60" /> {u.total_reading_time || 0}h
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                    )}
+                                            {st === 'accepted' && fr && (
+                                                <div className="flex gap-2 mt-2.5 pt-2.5 border-t border-white/[0.05]">
+                                                    <button onClick={() => openPanel('library', fr)}
+                                                        className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
+                                                            panel === 'library' && isActive ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30'
+                                                                : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border border-white/[0.07]')}>
+                                                        <Library size={11} /> Library
+                                                    </button>
+                                                    <button onClick={() => openPanel('chat', fr)}
+                                                        className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all',
+                                                            panel === 'chat' && isActive ? 'bg-primary text-white border border-primary/50 shadow-md shadow-primary/20'
+                                                                : 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20')}>
+                                                        <MessageSquare size={11} /> Chat
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                        )}
 
-                    {tab === 'friends' && (
-                        friends.length === 0
-                            ? <div className="text-center py-14 px-4">
-                                <Users className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
-                                <p className="text-white font-semibold text-sm">No friends yet</p>
-                                <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
-                                <button onClick={() => setTab('discover')}
-                                    className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
-                                    Discover Readers
-                                </button>
-                            </div>
-                            : friends.map(fr => (
-                                <div key={fr.friend_id} className={cn(
-                                    'border rounded-2xl p-3 transition-all',
-                                    active?.friend_id === fr.friend_id ? 'border-primary/40 bg-primary/[0.04]' : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.12]'
-                                )}>
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <Avatar name={fr.username || '?'} src={fr.avatar_url} dot="online" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-white text-sm truncate">{fr.username}</p>
-                                            <p className="text-[10px] text-text-muted">
-                                                Since {new Date(fr.friendship_since).toLocaleDateString('en', { month: 'short', year: 'numeric' })}
-                                            </p>
+                        {tab === 'friends' && (
+                            friends.length === 0
+                                ? <div className="text-center py-14 px-4">
+                                    <Users className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
+                                    <p className="text-white font-semibold text-sm">No friends yet</p>
+                                    <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
+                                    <button onClick={() => setTab('discover')}
+                                        className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
+                                        Discover Readers
+                                    </button>
+                                </div>
+                                : friends.map(fr => (
+                                    <div key={fr.friend_id} className={cn(
+                                        'border rounded-2xl p-3 transition-all',
+                                        active?.friend_id === fr.friend_id ? 'border-primary/40 bg-primary/[0.04]' : 'bg-white/[0.03] border-white/[0.07] hover:border-white/[0.12]'
+                                    )}>
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <Avatar name={fr.username || '?'} src={fr.avatar_url} dot="online" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-white text-sm truncate">{fr.username}</p>
+                                                <p className="text-[10px] text-text-muted">
+                                                    Since {new Date(fr.friendship_since).toLocaleDateString('en', { month: 'short', year: 'numeric' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => openPanel('library', fr)}
+                                                className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
+                                                    panel === 'library' && active?.friend_id === fr.friend_id ? 'bg-violet-500/25 text-violet-300 border-violet-500/30'
+                                                        : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border-white/[0.07]')}>
+                                                <Library size={11} /> Library
+                                            </button>
+                                            <button onClick={() => openPanel('chat', fr)}
+                                                className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
+                                                    panel === 'chat' && active?.friend_id === fr.friend_id ? 'bg-primary text-white border-primary/50 shadow-md shadow-primary/25'
+                                                        : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20')}>
+                                                <MessageSquare size={11} /> Chat
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openPanel('library', fr)}
-                                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
-                                                panel === 'library' && active?.friend_id === fr.friend_id ? 'bg-violet-500/25 text-violet-300 border-violet-500/30'
-                                                    : 'bg-white/[0.05] hover:bg-white/10 text-text-muted hover:text-white border-white/[0.07]')}>
-                                            <Library size={11} /> Library
-                                        </button>
-                                        <button onClick={() => openPanel('chat', fr)}
-                                            className={cn('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all',
-                                                panel === 'chat' && active?.friend_id === fr.friend_id ? 'bg-primary text-white border-primary/50 shadow-md shadow-primary/25'
-                                                    : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20')}>
-                                            <MessageSquare size={11} /> Chat
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                    )}
+                                ))
+                        )}
 
-                    {tab === 'activity' && (
-                        activity.length === 0
-                            ? <div className="text-center py-14 px-4">
-                                <TrendingUp className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
-                                <p className="text-white font-semibold text-sm">No activity yet</p>
-                                <p className="text-text-muted text-xs mt-1">Complete reading sessions to see activity</p>
-                            </div>
-                            : activity.map(a => (
-                                <div key={a.id} className="flex gap-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] rounded-xl p-3 transition-all">
-                                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                                        a.activity_type === 'book_completed' ? 'bg-emerald-500/15' : 'bg-primary/15')}>
-                                        {a.activity_type === 'book_completed' ? <CheckCircle size={14} className="text-emerald-400" /> : <Zap size={14} className="text-primary" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-white leading-snug">
-                                            <span className="font-semibold">{a.username}</span>
-                                            {a.activity_type === 'book_completed' && <> finished <span className="text-primary">{a.data?.book_title}</span></>}
-                                            {a.activity_type === 'session_completed' && <> read for <span className="text-primary">{a.data?.duration_minutes}min</span></>}
-                                        </p>
-                                        <p className="text-[10px] text-text-muted mt-0.5">{fmt.rel(a.created_at)}</p>
-                                    </div>
+                        {tab === 'activity' && (
+                            activity.length === 0
+                                ? <div className="text-center py-14 px-4">
+                                    <TrendingUp className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
+                                    <p className="text-white font-semibold text-sm">No activity yet</p>
+                                    <p className="text-text-muted text-xs mt-1">Complete reading sessions to see activity</p>
                                 </div>
-                            ))
-                    )}
+                                : activity.map(a => (
+                                    <div key={a.id} className="flex gap-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] rounded-xl p-3 transition-all">
+                                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
+                                            a.activity_type === 'book_completed' ? 'bg-emerald-500/15' : 'bg-primary/15')}>
+                                            {a.activity_type === 'book_completed' ? <CheckCircle size={14} className="text-emerald-400" /> : <Zap size={14} className="text-primary" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-white leading-snug">
+                                                <span className="font-semibold">{a.username}</span>
+                                                {a.activity_type === 'book_completed' && <> finished <span className="text-primary">{a.data?.book_title}</span></>}
+                                                {a.activity_type === 'session_completed' && <> read for <span className="text-primary">{a.data?.duration_minutes}min</span></>}
+                                            </p>
+                                            <p className="text-[10px] text-text-muted mt-0.5">{fmt.rel(a.created_at)}</p>
+                                        </div>
+                                    </div>
+                                ))
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT PANEL — FIXED: Always fills remaining space */}
+                <div className="hidden lg:flex lg:flex-1 lg:min-w-0">
+                    {panel && active ? (
+                        <div className="w-full h-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl flex flex-col">
+                            {panel === 'chat' && (
+                                <ChatPanel friend={active} me={user} onClose={closePanel}
+                                    onViewLibrary={() => openPanel('library', active)} />
+                            )}
+                            {panel === 'library' && (
+                                <FriendLibraryPanel friend={active} onClose={closePanel}
+                                    onOpenChat={() => openPanel('chat', active)} />
+                            )}
+                        </div>
+                    ) : friends.length > 0 ? (
+                        <div className="w-full h-full rounded-2xl border border-dashed border-white/[0.07] flex flex-col items-center justify-center text-center p-8 gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
+                                <MessageSquare className="w-7 h-7 text-text-muted/30" />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-white text-sm">Pick a friend to start</p>
+                                <p className="text-text-muted text-xs mt-1">Chat or browse their reading library</p>
+                            </div>
+                            <div className="flex gap-3 flex-wrap justify-center">
+                                <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full text-xs text-text-muted">
+                                    <MessageSquare size={10} className="text-primary" /> Real-time chat
+                                </div>
+                                <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full text-xs text-text-muted">
+                                    <Library size={10} className="text-violet-400" /> View their books
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </div>
-
-            {/* RIGHT PANEL — FIXED: Always fills remaining space */}
-            <div className="hidden lg:flex lg:flex-1 lg:min-w-0">
-                {panel && active ? (
-                    <div className="w-full h-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl flex flex-col">
-                        {panel === 'chat' && (
-                            <ChatPanel friend={active} me={user} onClose={closePanel}
-                                onViewLibrary={() => openPanel('library', active)} />
-                        )}
-                        {panel === 'library' && (
-                            <FriendLibraryPanel friend={active} onClose={closePanel}
-                                onOpenChat={() => openPanel('chat', active)} />
-                        )}
-                    </div>
-                ) : friends.length > 0 ? (
-                    <div className="w-full h-full rounded-2xl border border-dashed border-white/[0.07] flex flex-col items-center justify-center text-center p-8 gap-5">
-                        <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
-                            <MessageSquare className="w-7 h-7 text-text-muted/30" />
-                        </div>
-                        <div>
-                            <p className="font-semibold text-white text-sm">Pick a friend to start</p>
-                            <p className="text-text-muted text-xs mt-1">Chat or browse their reading library</p>
-                        </div>
-                        <div className="flex gap-3 flex-wrap justify-center">
-                            <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full text-xs text-text-muted">
-                                <MessageSquare size={10} className="text-primary" /> Real-time chat
-                            </div>
-                            <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full text-xs text-text-muted">
-                                <Library size={10} className="text-violet-400" /> View their books
-                            </div>
-                        </div>
-                    </div>
-                ) : null}
-            </div>
-        </div>
         </>
     );
 }
