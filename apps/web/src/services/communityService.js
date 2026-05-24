@@ -195,8 +195,10 @@ export const getConversation = async (userId, otherUserId) => {
 export const markMessagesAsRead = async (userId, senderId) => {
     try {
         const { error } = await supabase.from('messages')
-            .update({ read: true })
-            .eq('receiver_id', userId).eq('sender_id', senderId).eq('read', false);
+            .update({ read_at: new Date().toISOString() })
+            .eq('receiver_id', userId)
+            .eq('sender_id', senderId)
+            .is('read_at', null);
         if (error) throw error;
         return { error: null };
     } catch (error) {
@@ -208,7 +210,8 @@ export const getUnreadCount = async (userId) => {
     try {
         const { count, error } = await supabase.from('messages')
             .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', userId).eq('read', false);
+            .eq('receiver_id', userId)
+            .is('read_at', null);
         if (error) throw error;
         return count || 0;
     } catch (error) {
