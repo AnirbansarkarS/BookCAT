@@ -258,3 +258,22 @@ export const logMilestone = async (userId, milestoneText, metadata = {}) => {
         metadata
     });
 };
+
+/**
+ * Helper: Get all user milestones from database
+ */
+export const getUserMilestones = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('activities')
+            .select('metadata')
+            .eq('user_id', userId)
+            .eq('type', ACTIVITY_TYPES.MILESTONE);
+
+        if (error) throw error;
+        return { data: data || [], error: null };
+    } catch (error) {
+        console.error('Error fetching user milestones:', error);
+        return { data: [], error };
+    }
+};

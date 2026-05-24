@@ -5,7 +5,7 @@ import { getReadingSessions, getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { statsCache } from '../utils/statsCache';
-import { logMilestone } from '../services/activityService';
+import { logMilestone, getUserMilestones } from '../services/activityService';
 
 // Milestone tracking utilities
 const MILESTONES_STORAGE_KEY = 'bookcat_achieved_milestones';
@@ -26,6 +26,35 @@ const markMilestoneAchieved = (milestoneKey) => {
 
 const isMilestoneAchieved = (milestoneKey) => {
     return !!getAchievedMilestones()[milestoneKey];
+};
+
+const syncMilestonesToLocalStorage = (milestones) => {
+    if (!milestones || !Array.isArray(milestones)) return;
+    const achieved = getAchievedMilestones();
+    let updated = false;
+
+    milestones.forEach(m => {
+        const meta = m.metadata;
+        if (!meta || !meta.milestone_type) return;
+
+        let key = '';
+        if (meta.milestone_type === 'pages') {
+            key = `pages_${meta.value}`;
+        } else if (meta.milestone_type === 'books_completed') {
+            key = `books_completed_${meta.value}`;
+        } else if (meta.milestone_type === 'yearly_books') {
+            key = `yearly_books_${meta.year}_${meta.value}`;
+        }
+
+        if (key && !achieved[key]) {
+            achieved[key] = new Date().toISOString();
+            updated = true;
+        }
+    });
+
+    if (updated) {
+        localStorage.setItem(MILESTONES_STORAGE_KEY, JSON.stringify(achieved));
+    }
 };
 
 export default function Stats() {
@@ -97,10 +126,16 @@ export default function Stats() {
 
         setIsLoading(true);
         try {
-            const [sessionsData, booksData] = await Promise.all([
+            const [sessionsData, booksData, milestonesRes] = await Promise.all([
                 getReadingSessions(user.id),
-                getUserBooks(user.id)
+                getUserBooks(user.id),
+                getUserMilestones(user.id)
             ]);
+
+            // Sync database achievements to localStorage first to avoid duplicate feed events
+            if (milestonesRes && milestonesRes.data) {
+                syncMilestonesToLocalStorage(milestonesRes.data);
+            }
 
             const activeSession = statsCache.getActiveSession();
             const mergedSessions = activeSession
