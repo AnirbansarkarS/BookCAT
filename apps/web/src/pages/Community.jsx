@@ -700,6 +700,7 @@ export default function Community() {
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('discover');
     const [q, setQ] = useState('');
+    const [sendingRequest, setSendingRequest] = useState(null);
 
     const [panel, setPanel] = useState(null);
     const [active, setActive] = useState(null);
@@ -791,6 +792,12 @@ export default function Community() {
                         </div>
                         <div className={cn(
                             'flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-xs',
+                            pendingOut.length ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-text-muted'
+                        )}>
+                            <span className="font-bold">{pendingOut.length}</span> Requested
+                        </div>
+                        <div className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-xs',
                             pendingIn.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/10 text-text-muted'
                         )}>
                             <span className="font-bold">{pendingIn.length}</span> Requests
@@ -831,6 +838,7 @@ export default function Community() {
                         {[
                             { id: 'discover', icon: Search, label: 'Discover' },
                             { id: 'friends', icon: Users, label: 'Friends' },
+                            { id: 'requested', icon: UserPlus, label: 'Requested' },
                             { id: 'activity', icon: TrendingUp, label: 'Activity' },
                         ].map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)}
@@ -879,9 +887,16 @@ export default function Community() {
                                                         ? <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 flex-shrink-0">Pending</span>
                                                         : st === 'pending_out'
                                                             ? <span className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20 flex-shrink-0">Requested</span>
-                                                            : <button onClick={() => sendFriendRequest(user.id, u.id).then(load)}
-                                                                className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
-                                                                <UserPlus size={9} /> Add
+                                                            : <button 
+                                                                onClick={async () => {
+                                                                    setSendingRequest(u.id);
+                                                                    await sendFriendRequest(user.id, u.id);
+                                                                    setSendingRequest(null);
+                                                                    await load();
+                                                                }}
+                                                                disabled={sendingRequest === u.id}
+                                                                className="flex items-center gap-1 text-[10px] px-2.5 py-1 bg-primary/10 hover:bg-primary/20 disabled:opacity-50 text-primary rounded-full border border-primary/20 transition-all hover:scale-105 active:scale-95 flex-shrink-0">
+                                                                {sendingRequest === u.id ? <Loader2 size={9} className="animate-spin" /> : <UserPlus size={9} />} {sendingRequest === u.id ? 'Sending...' : 'Add'}
                                                             </button>
                                                 }
                                             </div>
@@ -951,6 +966,43 @@ export default function Community() {
                                                     panel === 'chat' && active?.friend_id === fr.friend_id ? 'bg-primary text-white border-primary/50 shadow-md shadow-primary/25'
                                                         : 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20')}>
                                                 <MessageSquare size={11} /> Chat
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                        )}
+
+                        {tab === 'requested' && (
+                            pendingOut.length === 0
+                                ? <div className="text-center py-14 px-4">
+                                    <UserPlus className="w-10 h-10 text-text-muted/30 mx-auto mb-3" />
+                                    <p className="text-white font-semibold text-sm">No pending requests</p>
+                                    <p className="text-text-muted text-xs mt-1 mb-4">Go to Discover</p>
+                                    <button onClick={() => setTab('discover')}
+                                        className="px-4 py-2 bg-primary text-white text-xs font-medium rounded-xl">
+                                        Find Readers
+                                    </button>
+                                </div>
+                                : pendingOut.map(req => (
+                                    <div key={req.friend_id} className="border rounded-2xl p-3 transition-all bg-white/[0.03] border-white/[0.07] hover:border-white/[0.12]">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <Avatar name={req.username || '?'} src={req.avatar_url} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-white text-sm truncate">{req.username}</p>
+                                                <p className="text-[10px] text-sky-400">Request pending</p>
+                                            </div>
+                                            <span className="text-[10px] px-2 py-0.5 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20 flex-shrink-0">Requested</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={async () => { 
+                                                setSendingRequest(req.friendship_id);
+                                                await removeFriend(req.friendship_id);
+                                                setSendingRequest(null);
+                                                await load();
+                                            }}
+                                                disabled={sendingRequest === req.friendship_id}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 disabled:opacity-50">
+                                                {sendingRequest === req.friendship_id ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />} {sendingRequest === req.friendship_id ? 'Canceling...' : 'Cancel'}
                                             </button>
                                         </div>
                                     </div>
