@@ -12,6 +12,7 @@ export default function Signup() {
     const [username, setUsername] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
+    const [cooldown, setCooldown] = useState(0)
     const [lampOn, setLampOn] = useState(false)
     const [pulling, setPulling] = useState(false)
     const [ropeStretch, setRopeStretch] = useState(0)
@@ -20,6 +21,9 @@ export default function Signup() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (cooldown > 0 || loading) {
+    return
+}
         setError('')
 
         // Validation
@@ -43,13 +47,44 @@ export default function Signup() {
         const { error: signUpError } = await signUp(email, password, username)
 
         if (signUpError) {
-            setError(signUpError.message)
-            setLoading(false)
-        } else {
-            navigate('/dashboard')
-        }
+
+    const errorMessage = signUpError.message.toLowerCase()
+
+    if (
+        errorMessage.includes('security purposes') ||
+        errorMessage.includes('rate limit')
+    ) {
+
+        setError(
+            'Too many signup attempts. Please wait before trying again.'
+        )
+
+        setCooldown(30)
+
+    } else if (errorMessage.includes('already')) {
+
+        setError('An account with this email already exists.')
+
+    } else if (errorMessage.includes('password')) {
+
+        setError('Password is too weak.')
+
+    } else if (errorMessage.includes('email')) {
+
+        setError('Please enter a valid email address.')
+
+    } else {
+
+        setError(signUpError.message)
+
     }
 
+    setLoading(false)
+}
+else {
+    navigate('/dashboard')
+}
+}
     const handleLampPull = () => {
         setPulling(true)
         setTimeout(() => {
@@ -122,7 +157,17 @@ export default function Signup() {
             }
         }
     }, [isDragging, ropeStretch, startY, lampOn])
+React.useEffect(() => {
 
+    if (cooldown <= 0) return
+
+    const timer = setInterval(() => {
+        setCooldown((prev) => prev - 1)
+    }, 1000)
+
+    return () => clearInterval(timer)
+
+}, [cooldown])
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4 overflow-hidden relative">
             {/* Ambient Background Elements */}
@@ -460,17 +505,19 @@ export default function Signup() {
                                 {/* Submit Button */}
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                   disabled={loading || cooldown > 0}
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-500 ease-in-out transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                                 >
                                     {loading ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Creating account...
-                                        </span>
-                                    ) : (
-                                        'Create Account'
-                                    )}
+    <span className="flex items-center justify-center gap-2">
+        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        Creating account...
+    </span>
+) : cooldown > 0 ? (
+    `Try again in ${cooldown}s`
+) : (
+    'Create Account'
+)}
                                 </button>
                             </div>
                         </form>
