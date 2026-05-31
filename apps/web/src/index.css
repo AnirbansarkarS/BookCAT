@@ -1,44 +1,40 @@
 @import "tailwindcss";
 
 @theme {
-  /* Primary Colors - Red Theme */
-  --color-primary: #ff002b;
-  /* Racing Red */
-  --color-primary-light: #c00021;
-  /* Brick Red */
-  --color-primary-dark: #a0001c;
-  /* Ruby Red */
+  /* Primary Colors - Subtler, more readable reds */
+  --color-primary: #f43f5e;
+  --color-primary-light: #fda4af;
+  --color-primary-dark: #be123c;
 
-  /* Accent Colors - Blue Theme */
-  --color-accent: #407ba7;
-  /* Steel Blue */
-  --color-accent-dark: #004e89;
-  /* Dusk Blue */
-  --color-accent-darker: #00043a;
-  /* Deep Navy */
+  /* Accent Colors - Softer Neon Blue */
+  --color-accent: #60a5fa;
+  --color-accent-dark: #3b82f6;
+  --color-accent-darker: #1d4ed8;
 
-  /* Background Colors */
-  --color-background: #0f111a;
-  --color-surface: #1e202e;
-  --color-surface-elevated: #2a2d3d;
+  /* Background Colors - True Deep Slate/Charcoal */
+  --color-background: #09090b;
+  --color-surface: #18181b;
+  --color-surface-elevated: #27272a;
 
-  /* Text Colors */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  /* Text Colors - High contrast, low eye-strain */
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #d4d4d8;
+  --color-text-muted: #a1a1aa;
 
-  /* Additional Red Shades */
-  --color-wine: #800016;
-  /* Dark Wine */
-  --color-ruby: #a0001c;
-  /* Ruby Red */
+  /* Additional Refined Red Shades */
+  --color-wine: #4c0519;
+  --color-ruby: #9f1239;
 
   --font-sans: Inter, system-ui, sans-serif;
 }
 
-
 body {
-  @apply bg-background text-text-primary antialiased;
+  @apply bg-background text-text-primary antialiased font-sans;
+}
+
+::selection {
+  background-color: rgba(255, 0, 43, 0.3);
+  color: #ffffff;
 }
 
 /* Hide scrollbar but allow scrolling */

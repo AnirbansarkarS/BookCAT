@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Clock, TrendingUp, Plus, Play, BarChart3, Lightbulb, RefreshCw, Sparkles } from 'lucide-react';
+import { BookOpen, Clock, TrendingUp, Plus, Play, BarChart3, Lightbulb, RefreshCw, Sparkles, Library, ArrowRight, Hourglass } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getUserBooks } from '../services/bookService';
 import { getTodayBookFacts, triggerBookFactGeneration } from '../services/bookFactService';
@@ -87,17 +87,17 @@ export default function Dashboard() {
         <div className="space-y-8">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-white mb-2">
+                <h1 className="text-3xl font-semibold text-white mb-2">
                     Welcome back, {user?.user_metadata?.username || 'Reader'}
                 </h1>
-                <p className="text-text-muted">Track your reading journey in real-time</p>
+                <p className="text-text-muted text-sm">Track your reading journey in real-time</p>
             </div>
 
             {/* Real-time Stats Widget */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-primary" />
+                    <h2 className="text-md font-medium text-white flex items-center gap-2">
+                        <span className="bg-emerald-400/10 p-1 rounded-lg"><TrendingUp className="w-4 h-4 text-emerald-500" /></span>
                         Today's Progress
                     </h2>
                     <div className="flex items-center gap-2 text-xs text-text-muted">
@@ -111,8 +111,8 @@ export default function Dashboard() {
             {/* Book Fact of the Day */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Lightbulb className="w-5 h-5 text-amber-400" />
+                    <h2 className="text-md font-medium text-white flex items-center gap-2">
+                        <span className="bg-surface/80 p-1 rounded-lg"><Lightbulb className="w-4 h-4 text-white" /></span>
                         Book Fact of the Day
                     </h2>
                     {bookFacts.length < 2 && (
@@ -123,7 +123,7 @@ export default function Dashboard() {
                                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                 generatingFact
                                     ? "bg-white/5 text-text-muted cursor-not-allowed"
-                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                                    : "bg-white/10 hover:bg-white/20"
                             )}
                         >
                             {generatingFact ? (
@@ -133,8 +133,7 @@ export default function Dashboard() {
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    New Fact ({bookFacts.length}/2)
+                                    New Fact {bookFacts.length}/2
                                 </>
                             )}
                         </button>
@@ -144,7 +143,7 @@ export default function Dashboard() {
                 {factsLoading ? (
                     <div className="grid md:grid-cols-2 gap-3">
                         {[1, 2].map(i => (
-                            <div key={i} className="bg-surface/50 border border-white/10 rounded-xl p-5 animate-pulse">
+                            <div key={i} className="bg-surface/60 backdrop-blur-md border border-white/5 shadow-sm rounded-xl p-5 animate-pulse">
                                 <div className="h-4 bg-white/10 rounded w-3/4 mb-3" />
                                 <div className="h-3 bg-white/10 rounded w-1/2" />
                             </div>
@@ -156,9 +155,9 @@ export default function Dashboard() {
                             <div
                                 key={fact.id}
                                 className={cn(
-                                    "bg-gradient-to-br from-amber-500/10 to-orange-500/5",
-                                    "border border-amber-500/20 rounded-xl p-5",
-                                    "hover:border-amber-500/40 transition-all duration-300"
+                                    "bg-gradient-to-br from-amber-500/10 to-transparent backdrop-blur-md",
+                                    "border border-amber-500/20 rounded-xl p-5 shadow-sm",
+                                    "hover:border-amber-500/40 hover:shadow-amber-500/10 transition-all duration-300"
                                 )}
                             >
                                 <div className="flex items-start gap-3">
@@ -179,8 +178,8 @@ export default function Dashboard() {
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-surface/50 border border-white/10 rounded-xl p-6 text-center">
-                        <Lightbulb className="w-10 h-10 text-amber-400/40 mx-auto mb-3" />
+                    <div className="bg-surface/60 backdrop-blur-md border border-white/5 shadow-sm rounded-xl p-6 text-center">
+                        <Lightbulb className="w-14 h-14 text-text-muted mx-auto mb-3" />
                         <p className="text-text-muted text-sm mb-3">No facts yet today</p>
                         <button
                             onClick={handleGenerateFact}
@@ -189,7 +188,7 @@ export default function Dashboard() {
                                 "inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors",
                                 generatingFact
                                     ? "bg-white/5 text-text-muted cursor-not-allowed"
-                                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                                    : "bg-accent-dark hover:bg-accent-darker"
                             )}
                         >
                             {generatingFact ? (
@@ -199,7 +198,6 @@ export default function Dashboard() {
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles className="w-4 h-4" />
                                     Generate First Fact
                                 </>
                             )}
@@ -211,22 +209,22 @@ export default function Dashboard() {
             {/* Currently Reading */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 text-primary" />
+                    <h2 className="text-md font-medium text-white flex items-center gap-2">
+                        <span className="bg-surface/80 p-1 rounded-lg"><BookOpen className="w-4 h-4 text-white" /></span>
                         Continue Reading
                     </h2>
                     <Link 
                         to="/library" 
-                        className="text-sm text-primary hover:text-primary/80 transition-colors"
+                        className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
                     >
-                        View All →
+                        View All
                     </Link>
                 </div>
 
                 {isLoading ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="bg-surface/50 border border-white/10 rounded-xl animate-pulse">
+                            <div key={i} className="bg-surface/40 backdrop-blur-sm border border-white/5 rounded-xl animate-pulse">
                                 <div className="aspect-[2/3] bg-white/5" />
                                 <div className="p-4 space-y-2">
                                     <div className="h-4 bg-white/10 rounded" />
@@ -247,9 +245,9 @@ export default function Dashboard() {
                                     key={book.id}
                                     to={`/library`}
                                     className={cn(
-                                        "group bg-surface rounded-xl overflow-hidden border border-white/5",
-                                        "transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/20",
-                                        "hover:border-primary/50"
+                                        "group bg-surface/60 backdrop-blur-md rounded-xl overflow-hidden border border-white/5 shadow-sm",
+                                        "transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10",
+                                        "hover:border-primary/30"
                                     )}
                                     style={{ transformStyle: 'preserve-3d' }}
                                 >
@@ -308,7 +306,7 @@ export default function Dashboard() {
                         })}
                     </div>
                 ) : (
-                    <div className="bg-surface/50 border border-white/10 rounded-xl p-8 text-center">
+                    <div className="bg-surface/60 backdrop-blur-md border border-white/5 shadow-sm rounded-xl p-8 text-center">
                         <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-4" />
                         <h3 className="text-white font-semibold mb-2">No books in progress</h3>
                         <p className="text-text-muted text-sm mb-4">Start reading to see your books here</p>
@@ -328,14 +326,14 @@ export default function Dashboard() {
                 <Link
                     to="/library"
                     className={cn(
-                        "bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-6",
-                        "hover:shadow-lg hover:shadow-primary/20 hover:scale-105 transition-all duration-300",
+                        "bg-surface/60 border border-white/10 rounded-xl p-6 shadow-sm",
+                        "hover:bg-surface-elevated/40 transition-all duration-300",
                         "group cursor-pointer"
                     )}
                 >
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 bg-primary/90 rounded-lg flex items-center justify-center">
+                            <Library className="w-5 h-5 text-white" />
                         </div>
                         <h3 className="font-semibold text-white">Library</h3>
                     </div>
@@ -344,21 +342,21 @@ export default function Dashboard() {
                     </p>
                     <div className="text-sm text-primary font-medium group-hover:gap-2 flex items-center gap-1 transition-all">
                         View Library
-                        <span className="group-hover:translate-x-1 transition-transform">→</span>
+                        <span className="group-hover:translate-x-1 transition-transform"><ArrowRight size={16} /></span>
                     </div>
                 </Link>
 
                 <Link
                     to="/stats"
                     className={cn(
-                        "bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-6",
-                        "hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-105 transition-all duration-300",
+                        "bg-surface/60 border border-white/10 rounded-xl p-6 shadow-sm",
+                        "hover:bg-surface-elevated/40 transition-all duration-300",
                         "group cursor-pointer"
                     )}
                 >
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                            <BarChart3 className="w-5 h-5 text-emerald-400" />
+                        <div className="w-10 h-10 bg-emerald-500/90 rounded-lg flex items-center justify-center">
+                            <BarChart3 className="w-5 h-5 text-white" />
                         </div>
                         <h3 className="font-semibold text-white">Stats</h3>
                     </div>
@@ -367,29 +365,29 @@ export default function Dashboard() {
                     </p>
                     <div className="text-sm text-emerald-400 font-medium group-hover:gap-2 flex items-center gap-1 transition-all">
                         View Stats
-                        <span className="group-hover:translate-x-1 transition-transform">→</span>
+                        <span className="group-hover:translate-x-1 transition-transform"><ArrowRight size={16} /></span>
                     </div>
                 </Link>
 
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 rounded-xl p-6",
-                        "hover:shadow-lg hover:shadow-amber-500/20 hover:scale-105 transition-all duration-300",
+                        "bg-surface/60 border border-white/10 rounded-xl p-6 shadow-sm",
+                        "hover:bg-surface-elevated/40 transition-all duration-300",
                         "group cursor-pointer"
                     )}
                 >
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-amber-400" />
+                        <div className="w-10 h-10 bg-yellow-500/90 rounded-lg flex items-center justify-center">
+                            <Hourglass className="w-5 h-5 text-white" />
                         </div>
                         <h3 className="font-semibold text-white">Reading Sessions</h3>
                     </div>
                     <p className="text-sm text-text-muted mb-3">
                         Start a timed reading session with any book
                     </p>
-                    <div className="text-sm text-amber-400 font-medium group-hover:gap-2 flex items-center gap-1 transition-all">
+                    <div className="text-sm text-yellow-400 font-medium group-hover:gap-2 flex items-center gap-1 transition-all">
                         Start Session
-                        <span className="group-hover:translate-x-1 transition-transform">→</span>
+                        <span className="group-hover:translate-x-1 transition-transform"><ArrowRight size={16} /></span>
                     </div>
                 </div>
             </div>

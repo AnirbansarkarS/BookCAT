@@ -212,7 +212,7 @@ export function Navbar({ onMenuClick }) {
     const unreadCount = notifications.length
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-white/5 bg-background/80 backdrop-blur-xl px-4 md:px-8">
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-white/5 bg-background/60 backdrop-blur-md shadow-sm px-4 md:px-8">
             <div className="flex items-center gap-3">
                 <button
                     onClick={onMenuClick}
@@ -266,7 +266,7 @@ export function Navbar({ onMenuClick }) {
 
                     {/* Notification Dropdown */}
                     {notifOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                        <div className="absolute right-0 mt-2 w-80 bg-surface/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
                             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07]">
                                 <p className="text-sm font-bold text-white">Notifications</p>
                                 {unreadCount > 0 && (
@@ -361,7 +361,7 @@ export function Navbar({ onMenuClick }) {
 
                     {/* Dropdown Menu */}
                     {dropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                        <div className="absolute right-0 mt-2 w-56 bg-surface/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
                             <div className="p-4 border-b border-white/5">
                                 <p className="text-sm font-medium text-white">
                                     {profile?.username || 'User'}

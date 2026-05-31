@@ -56,7 +56,7 @@ export function Sidebar({ isOpen, onClose }) {
 
             {/* Sidebar Content */}
             <aside className={cn(
-                "fixed md:sticky top-0 left-0 z-[70] h-screen w-64 bg-surface border-r border-white/5",
+                "fixed md:sticky top-0 left-0 z-[70] h-screen w-64 bg-surface/80 backdrop-blur-md border-r border-white/5",
                 "transform transition-transform duration-300 ease-in-out md:translate-x-0",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
@@ -71,17 +71,17 @@ export function Sidebar({ isOpen, onClose }) {
                     <img src={logo} alt="BookCat" className="h-9 w-9 object-contain" width="36" height="36" decoding="async" />
                 </div>
 
-                <nav className="p-4 space-y-2 mt-4">
+                <nav className="p-4 space-y-2">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
                             onClick={() => window.innerWidth < 768 && onClose()}
                             className={({ isActive }) => cn(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                                "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 group text-sm",
                                 isActive
-                                    ? "bg-primary/10 text-primary shadow-sm shadow-blue-900/20"
-                                    : "text-text-secondary hover:bg-white/5 hover:text-text-primary"
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-text-muted hover:bg-white/5 hover:text-text-primary border border-transparent"
                             )}
                         >
                             {({ isActive }) => (
@@ -89,7 +89,7 @@ export function Sidebar({ isOpen, onClose }) {
                                     <item.icon size={20} strokeWidth={1.5} />
                                     <span className="font-medium">{item.label}</span>
                                     {isActive && (
-                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-lg shadow-blue-500" />
+                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--color-primary),0.8)]" />
                                     )}
                                 </>
                             )}
@@ -102,7 +102,7 @@ export function Sidebar({ isOpen, onClose }) {
                         'p-4 rounded-2xl border transition-all',
                         isGoalMet
                             ? 'bg-gradient-to-br from-emerald-500/20 to-transparent border-emerald-500/20'
-                            : 'bg-gradient-to-br from-primary/20 to-transparent border-white/5'
+                            : 'bg-gradient-to-br from-primary/10 to-transparent border-white/5 backdrop-blur-sm'
                     )}>
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1.5">

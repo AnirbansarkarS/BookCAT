@@ -184,19 +184,19 @@ export default function RealtimeStatsWidget() {
                 {/* Today's Reading Time */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20"
+                        "bg-surface/70 rounded-xl p-5 gap-4 flex flex-col justify-between",
+                        "transition-all duration-300"
                     )}
                     key={`time-${animateTrigger}`}
                 >
-                    <div className="flex items-center gap-2 mb-2">
-                        <Clock className="w-4 h-4 text-blue-400" />
+                    <div className="flex items-center gap-2 mb-2 opacity-80">
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><Clock className="w-4 h-4 text-blue-300" /></span>
                         <span className="text-xs text-text-muted">Today</span>
                     </div>
-                    <div className="text-2xl font-bold text-white animate-count-up">
+                    <div className="text-4xl font-light text-white animate-count-up">
                         {formatTime(stats.todayMinutes)}
                     </div>
-                    <div className="text-xs text-blue-400 mt-1">
+                    <div className="text-xs mt-1 text-text-muted">
                         {stats.todaySessions} session{stats.todaySessions !== 1 ? 's' : ''}
                     </div>
                 </div>
@@ -204,19 +204,19 @@ export default function RealtimeStatsWidget() {
                 {/* Today's Pages */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20"
+                        "bg-surface/70 rounded-xl p-5 flex flex-col justify-between",
+                        "transition-all duration-300"
                     )}
                     key={`pages-${animateTrigger}`}
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="w-4 h-4 text-emerald-400" />
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><BookOpen className="w-4 h-4 text-emerald-300" /></span>
                         <span className="text-xs text-text-muted">Pages</span>
                     </div>
-                    <div className="text-2xl font-bold text-white animate-count-up">
+                    <div className="text-4xl font-light text-white animate-count-up">
                         {stats.todayPages}
                     </div>
-                    <div className="text-xs text-emerald-400 mt-1">
+                    <div className="text-xs mt-1 text-text-muted">
                         read today
                     </div>
                 </div>
@@ -224,20 +224,20 @@ export default function RealtimeStatsWidget() {
                 {/* Reading Streak */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/20",
+                        "bg-surface/70 rounded-xl p-5 flex flex-col justify-between",
+                        "transition-all duration-300",
                         stats.currentStreak > 0 && "animate-pulse-subtle"
                     )}
                     key={`streak-${animateTrigger}`}
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><Zap className="w-4 h-4 text-amber-200" /></span>
                         <span className="text-xs text-text-muted">Streak</span>
                     </div>
-                    <div className="text-2xl font-bold text-white animate-count-up">
+                    <div className="text-4xl font-light text-white animate-count-up">
                         {stats.currentStreak}
                     </div>
-                    <div className="text-xs text-amber-400 mt-1">
+                    <div className="text-xs mt-1 text-text-muted">
                         day{stats.currentStreak !== 1 ? 's' : ''}
                     </div>
                 </div>
@@ -245,15 +245,15 @@ export default function RealtimeStatsWidget() {
                 {/* Week Progress */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-500/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20"
+                        "bg-surface/70 rounded-xl p-5 flex flex-col justify-between",
+                        "transition-all duration-300"
                     )}
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-purple-400" />
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><TrendingUp className="w-4 h-4 text-purple-300" /></span>
                         <span className="text-xs text-text-muted">This Week</span>
                     </div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-4xl font-light text-white">
                         {formatTime(stats.weekMinutes)}
                     </div>
                     <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-2">
@@ -267,18 +267,18 @@ export default function RealtimeStatsWidget() {
                 {/* Currently Reading */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 border border-indigo-500/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20"
+                        "bg-surface/70 rounded-xl p-5 flex flex-col justify-between",
+                        "transition-all duration-300"
                     )}
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4 text-indigo-400" />
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><Target className="w-4 h-4 text-indigo-300" /></span>
                         <span className="text-xs text-text-muted">Reading</span>
                     </div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-4xl font-light text-white">
                         {stats.booksReading}
                     </div>
-                    <div className="text-xs text-indigo-400 mt-1">
+                    <div className="text-xs mt-1 text-text-muted">
                         book{stats.booksReading !== 1 ? 's' : ''} active
                     </div>
                 </div>
@@ -286,20 +286,20 @@ export default function RealtimeStatsWidget() {
                 {/* Quick Action Card */}
                 <div
                     className={cn(
-                        "bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-4",
-                        "transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20",
+                        "bg-surface/70 rounded-xl p-5 flex flex-col justify-between",
+                        "transition-all duration-300",
                         "cursor-pointer group"
                     )}
                     onClick={() => window.location.href = '/stats'}
                 >
                     <div className="flex items-center gap-2 mb-2">
-                        <Award className="w-4 h-4 text-primary" />
+                        <span className="bg-surface-elevated/80 p-2 rounded-lg"><Award className="w-4 h-4 text-red-300" /></span>
                         <span className="text-xs text-text-muted">View All</span>
                     </div>
-                    <div className="text-lg font-bold text-white group-hover:text-primary transition-colors">
+                    <div className="text-2xl font-light text-white group-hover:text-primary transition-colors">
                         Stats →
                     </div>
-                    <div className="text-xs text-primary mt-1">
+                    <div className="text-xs mt-1">
                         Full insights
                     </div>
                 </div>
