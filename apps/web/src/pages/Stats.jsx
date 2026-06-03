@@ -5,7 +5,7 @@ import { getReadingSessions, getUserBooks } from '../services/bookService';
 import { cn } from '../lib/utils';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { statsCache } from '../utils/statsCache';
-import { logMilestone } from '../services/activityService';
+import { logMilestone, getUserMilestones } from '../services/activityService';
 
 // Milestone tracking utilities
 const MILESTONES_STORAGE_KEY = 'bookcat_achieved_milestones';
@@ -18,14 +18,40 @@ const getAchievedMilestones = () => {
     }
 };
 
+const getMilestoneKey = (meta) => {
+    if (!meta || !meta.milestone_type) return null;
+    if (meta.milestone_type === 'pages') {
+        return `pages_${meta.value}`;
+    } else if (meta.milestone_type === 'books_completed') {
+        return `books_completed_${meta.value}`;
+    } else if (meta.milestone_type === 'yearly_books') {
+        return `yearly_books_${meta.year}_${meta.value}`;
+    }
+    return null;
+};
+
 const markMilestoneAchieved = (milestoneKey) => {
     const achieved = getAchievedMilestones();
     achieved[milestoneKey] = new Date().toISOString();
     localStorage.setItem(MILESTONES_STORAGE_KEY, JSON.stringify(achieved));
 };
 
-const isMilestoneAchieved = (milestoneKey) => {
-    return !!getAchievedMilestones()[milestoneKey];
+const syncMilestonesToLocalStorage = (milestones) => {
+    if (!milestones || !Array.isArray(milestones)) return;
+    const achieved = getAchievedMilestones();
+    let updated = false;
+
+    milestones.forEach(m => {
+        const key = getMilestoneKey(m.metadata);
+        if (key && !achieved[key]) {
+            achieved[key] = new Date().toISOString();
+            updated = true;
+        }
+    });
+
+    if (updated) {
+        localStorage.setItem(MILESTONES_STORAGE_KEY, JSON.stringify(achieved));
+    }
 };
 
 export default function Stats() {
@@ -34,12 +60,11 @@ export default function Stats() {
     const [books, setBooks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [timeRange, setTimeRange] = useState('all'); // all, today, week, month
-    const milestoneCheckRef = useRef(false);
+    const achievedMilestonesRef = useRef(new Set());
 
     // Check and log milestones
     const checkMilestones = async (sessionsData, booksData) => {
-        if (!user || milestoneCheckRef.current) return;
-        milestoneCheckRef.current = true;
+        if (!user) return;
 
         const totalPages = sessionsData.reduce((total, s) => total + (s.pages_read || 0), 0);
         const completedBooks = booksData.filter(b => b.status === 'Completed' || b.tags?.includes('finished'));
@@ -52,13 +77,19 @@ export default function Stats() {
         const pageMilestones = [100, 500, 1000, 5000, 10000];
         for (const milestone of pageMilestones) {
             const key = `pages_${milestone}`;
-            if (totalPages >= milestone && !isMilestoneAchieved(key)) {
-                await logMilestone(
-                    user.id,
-                    `🎉 Read ${milestone.toLocaleString()} pages total!`,
-                    { milestone_type: 'pages', value: milestone }
-                );
+            if (totalPages >= milestone && !achievedMilestonesRef.current.has(key)) {
+                // Instantly register milestone locally to prevent race conditions during async log
+                achievedMilestonesRef.current.add(key);
                 markMilestoneAchieved(key);
+                try {
+                    await logMilestone(
+                        user.id,
+                        `🎉 Read ${milestone.toLocaleString()} pages total!`,
+                        { milestone_type: 'pages', value: milestone }
+                    );
+                } catch (err) {
+                    console.error('Error logging page milestone:', err);
+                }
             }
         }
 
@@ -66,13 +97,18 @@ export default function Stats() {
         const bookMilestones = [1, 5, 10, 25, 50, 100];
         for (const milestone of bookMilestones) {
             const key = `books_completed_${milestone}`;
-            if (completedBooks.length >= milestone && !isMilestoneAchieved(key)) {
-                await logMilestone(
-                    user.id,
-                    `🏆 Completed ${milestone} book${milestone > 1 ? 's' : ''}!`,
-                    { milestone_type: 'books_completed', value: milestone }
-                );
+            if (completedBooks.length >= milestone && !achievedMilestonesRef.current.has(key)) {
+                achievedMilestonesRef.current.add(key);
                 markMilestoneAchieved(key);
+                try {
+                    await logMilestone(
+                        user.id,
+                        `🏆 Completed ${milestone} book${milestone > 1 ? 's' : ''}!`,
+                        { milestone_type: 'books_completed', value: milestone }
+                    );
+                } catch (err) {
+                    console.error('Error logging books completed milestone:', err);
+                }
             }
         }
 
@@ -81,13 +117,18 @@ export default function Stats() {
         const currentYear = new Date().getFullYear();
         for (const milestone of yearlyMilestones) {
             const key = `yearly_books_${currentYear}_${milestone}`;
-            if (booksThisYear >= milestone && !isMilestoneAchieved(key)) {
-                await logMilestone(
-                    user.id,
-                    `🏆 Completed ${milestone} books in ${currentYear}!`,
-                    { milestone_type: 'yearly_books', value: milestone, year: currentYear }
-                );
+            if (booksThisYear >= milestone && !achievedMilestonesRef.current.has(key)) {
+                achievedMilestonesRef.current.add(key);
                 markMilestoneAchieved(key);
+                try {
+                    await logMilestone(
+                        user.id,
+                        `🏆 Completed ${milestone} books in ${currentYear}!`,
+                        { milestone_type: 'yearly_books', value: milestone, year: currentYear }
+                    );
+                } catch (err) {
+                    console.error('Error logging yearly books milestone:', err);
+                }
             }
         }
     };
@@ -97,10 +138,22 @@ export default function Stats() {
 
         setIsLoading(true);
         try {
-            const [sessionsData, booksData] = await Promise.all([
+            const [sessionsData, booksData, milestonesRes] = await Promise.all([
                 getReadingSessions(user.id),
-                getUserBooks(user.id)
+                getUserBooks(user.id),
+                getUserMilestones(user.id)
             ]);
+
+            // Synchronize database achievements to the in-memory Ref and LocalStorage
+            if (milestonesRes && milestonesRes.data) {
+                const dbMilestones = new Set();
+                milestonesRes.data.forEach(m => {
+                    const key = getMilestoneKey(m.metadata);
+                    if (key) dbMilestones.add(key);
+                });
+                achievedMilestonesRef.current = dbMilestones;
+                syncMilestonesToLocalStorage(milestonesRes.data);
+            }
 
             const activeSession = statsCache.getActiveSession();
             const mergedSessions = activeSession
