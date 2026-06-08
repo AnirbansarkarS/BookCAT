@@ -50,3 +50,71 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ==========================================
+   Responsive Breakpoints
+   ========================================== */
+
+/* Small Laptops (1024px and below) */
+@media (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Tablets (768px and below) */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex-row-responsive {
+    flex-direction: column;
+  }
+
+  .grid-responsive {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+/* Mobile Devices (640px and below) */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    line-height: 2.4rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .text-mobile-center {
+    text-align: center;
+  }
+
+  .w-mobile-full {
+    width: 100%;
+  }
+}
+
