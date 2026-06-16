@@ -347,7 +347,7 @@ VITE_GEMINI_API_KEY=your-gemini-api-key
 | Setting | Value |
 |---------|-------|
 | Base directory | _(leave empty)_ |
-| Build command | `cd apps/web && npm ci && npm run build` |
+| Build command | `npm ci && npx turbo run build --filter=web` |
 | Publish directory | `apps/web/dist` |
 | Node version | 18 or higher |
 
