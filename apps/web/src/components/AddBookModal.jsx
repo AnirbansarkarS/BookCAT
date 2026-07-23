@@ -176,7 +176,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
         try {
             // Check for duplicates if ISBN is provided
             if (manualForm.isbn && manualForm.isbn.trim()) {
-                const isDuplicate = await checkDuplicateISBN(user.id, manualForm.isbn);
+                const { exists: isDuplicate } = await checkDuplicateISBN(user.id, manualForm.isbn);
                 if (isDuplicate) {
                     setError('A book with this ISBN is already in your library');
                     setIsSaving(false);
