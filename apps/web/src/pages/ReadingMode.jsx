@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, BookOpen, CheckCircle, Pause, Play, StopCircle, Save, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
-import { getUserBooks, updateBookStatus, logReadingSession } from '../services/bookService';
+import { getUserBooks, updateBookDetails, logReadingSession } from '../services/bookService';
 import { supabase } from '../lib/supabase';
 
 export default function ReadingMode() {
@@ -99,7 +99,11 @@ export default function ReadingMode() {
                 ? 'Completed'
                 : 'Reading';
 
-            await updateBookStatus(book.id, newStatus, newProgress, parseInt(endPage));
+            await updateBookDetails(book.id, {
+                status: newStatus,
+                progress: newProgress,
+                current_page: parseInt(endPage),
+            });
 
             setSessionState('finished');
             setTimeout(() => navigate('/library'), 2000);
