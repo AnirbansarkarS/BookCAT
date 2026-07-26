@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, BookOpen, CheckCircle, Pause, Play, StopCircle, Save, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../hooks/useAuth';
-import { getUserBooks, updateBookStatus, logReadingSession } from '../services/bookService';
+import { getUserBooks, updateBookDetails, logReadingSession } from '../services/bookService';
 import { supabase } from '../lib/supabase';
 
 export default function ReadingMode() {
@@ -85,21 +85,26 @@ export default function ReadingMode() {
         if (!book) return;
 
         try {
-            const pagesRead = Math.max(0, parseInt(endPage) - (book.current_page || 0));
+            const currentPage = Math.max(0, parseInt(endPage) || 0);
+            const pagesRead = Math.max(0, currentPage - (book.current_page || 0));
 
             // 1. Log Session
             await logReadingSession(user.id, book.id, timer, pagesRead);
 
-            // 2. Update Book Status
+            // 2. Update Book Status & Progress
             const newProgress = book.total_pages
-                ? Math.min(100, Math.round((parseInt(endPage) / book.total_pages) * 100))
+                ? Math.min(100, Math.round((currentPage / book.total_pages) * 100))
                 : book.progress;
 
-            const newStatus = parseInt(endPage) >= (book.total_pages || 999999)
+            const newStatus = currentPage >= (book.total_pages || 999999)
                 ? 'Completed'
                 : 'Reading';
 
-            await updateBookStatus(book.id, newStatus, newProgress, parseInt(endPage));
+            await updateBookDetails(book.id, {
+                status: newStatus,
+                progress: newProgress,
+                current_page: currentPage,
+            });
 
             setSessionState('finished');
             setTimeout(() => navigate('/library'), 2000);
@@ -209,7 +214,7 @@ export default function ReadingMode() {
                                     <p className="text-lg font-mono">{formatTime(timer)}</p>
                                 </div>
                                 <div className="p-3 bg-background rounded-lg border border-white/5">
-                                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Started At</p>
+                                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Started at Page</p>
                                     <p className="text-lg font-mono">{book.current_page || 0}</p>
                                 </div>
                             </div>
