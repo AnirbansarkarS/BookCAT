@@ -255,7 +255,7 @@ export const updateDeliveryStatus = async (exchangeId, updates) => {
 /**
  * Mark courier payment as done
  */
-export const markCourierPaid = async (exchangeId, userId, isInitiator) => {
+export const markCourierPaid = async (exchangeId, isInitiator) => {
     try {
         const field = isInitiator ? 'courier_cost_paid_initiator' : 'courier_cost_paid_recipient';
         const { data, error } = await supabase
