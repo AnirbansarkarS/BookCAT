@@ -412,9 +412,9 @@ export const fetchPageCount = async (title, authors) => {
         if (!res.ok) return null;
 
         const data = await res.json();
-        // Find the first result that has a pageCount
-        const match = (data.items || []).find(i => i.volumeInfo?.pageCount);
-        return match?.volumeInfo?.pageCount || null;
+        // Find the first result that has a pageCount defined
+        const match = (data.items || []).find(i => i.volumeInfo?.pageCount != null);
+        return match?.volumeInfo?.pageCount ?? null;
     } catch (err) {
         console.error('Error fetching page count:', err);
         return null;
