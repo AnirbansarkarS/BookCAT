@@ -1,5 +1,11 @@
-const GEMINI_API_KEY = "your_gemini_api_key_here";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+if (!GEMINI_API_KEY) {
+  console.error("GEMINI_API_KEY environment variable is not set");
+  process.exit(1);
+}
 
 const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
   method: "POST",
