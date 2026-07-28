@@ -78,7 +78,7 @@ export const getActiveSession = async (userId) => {
     const cached = localStorage.getItem(CACHE_KEYS.ACTIVE_SESSION);
     if (cached) {
         console.log('📦 Retrieved active session from localStorage');
-        return JSON.parse(cached);
+        try { return JSON.parse(cached); } catch { return null; }
     }
     return null;
 };
@@ -160,7 +160,7 @@ export const getCachedStats = async (userId, fetchFn) => {
         const cached = localStorage.getItem(CACHE_KEYS.STATS);
         if (cached) {
             console.log('📊 Using cached stats');
-            return JSON.parse(cached);
+            try { return JSON.parse(cached); } catch { return null; }
         }
     }
 
@@ -247,7 +247,8 @@ export const recoverActiveSession = async (userId) => {
 // Synchronous localStorage-only methods for components that don't need async
 export const getActiveSessionSync = () => {
     const cached = localStorage.getItem(CACHE_KEYS.ACTIVE_SESSION);
-    return cached ? JSON.parse(cached) : null;
+    if (!cached) return null;
+    try { return JSON.parse(cached); } catch { return null; }
 };
 
 export const saveActiveSessionSync = (sessionData) => {
