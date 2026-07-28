@@ -324,4 +324,4 @@ export const statsCache = {
 };
 
 // Also export as default for compatibility
-export default statsCache;
+export default statsCache;// fix: lint issue
