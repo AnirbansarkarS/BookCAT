@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
+.catch(err => console.error(err))
             setUser(session?.user ?? null)
             if (session?.user) {
                 loadProfile(session.user.id)
