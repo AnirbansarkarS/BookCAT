@@ -476,7 +476,7 @@ export default function ReadingSessionModal({ book, intent, onClose, onComplete,
                                         type="number"
                                         value={currentPage}
                                         onChange={(e) => {
-                                            const value = parseInt(e.target.value) || 0;
+                                            const value = parseInt(e.target.value, 10) || 0;
                                             const maxPage = book.total_pages || 9999;
                                             setCurrentPage(Math.max(startPage, Math.min(value, maxPage)));
                                         }}
