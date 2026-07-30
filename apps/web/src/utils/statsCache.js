@@ -156,7 +156,7 @@ export const getCachedStats = async (userId, fetchFn) => {
     const lastSync = localStorage.getItem(CACHE_KEYS.LAST_SYNC);
     const now = Date.now();
 
-    if (lastSync && (now - parseInt(lastSync)) < SYNC_INTERVAL) {
+    if (lastSync && (now - parseInt(lastSync, 10)) < SYNC_INTERVAL) {
         const cached = localStorage.getItem(CACHE_KEYS.STATS);
         if (cached) {
             console.log('📊 Using cached stats');
@@ -272,7 +272,7 @@ export const saveStatsSync = (stats) => {
 
 export const getLastUpdateSync = () => {
     const timestamp = localStorage.getItem(CACHE_KEYS.LAST_UPDATE);
-    return timestamp ? parseInt(timestamp) : null;
+    return timestamp ? parseInt(timestamp, 10) : null;
 };
 
 export const setLastUpdateSync = () => {
