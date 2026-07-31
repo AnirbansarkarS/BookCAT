@@ -189,7 +189,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
                 title: manualForm.title.trim(),
                 authors: manualForm.authors?.trim() || null,
                 published_year: manualForm.published_year?.trim() || null,
-                total_pages: manualForm.total_pages ? parseInt(manualForm.total_pages) : null,
+                total_pages: manualForm.total_pages ? parseInt(manualForm.total_pages, 10) : null,
                 description: manualForm.description?.trim() || null,
                 cover_url: manualForm.cover_url?.trim() || null,
                 source: 'manual',
