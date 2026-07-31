@@ -554,9 +554,9 @@ export default function Library() {
     const handleSave = async (book) => {
         if (!user) return;
         const draft = drafts[book.id] || buildDraft(book);
-        const parsedTotal = parseInt(draft.total_pages);
+        const parsedTotal = parseInt(draft.total_pages, 10);
         const totalPages = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : null;
-        let currentPage = Math.max(0, parseInt(draft.current_page) || 0);
+        let currentPage = Math.max(0, parseInt(draft.current_page, 10) || 0);
         if (totalPages) currentPage = Math.min(currentPage, totalPages);
 
         let progress = 0;
