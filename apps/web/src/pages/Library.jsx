@@ -103,7 +103,7 @@ function StarRating({ value = 0, onChange, readonly = false, size = 'sm' }) {
             className="flex items-center gap-0.5"
             onMouseLeave={() => !readonly && setHover(null)}
         >
-            {stars.map((s) => {
+            {(stars ?? []).map((s) => {
                 const full = display >= s;
                 const half = !full && display >= s - 0.5;
                 return (
