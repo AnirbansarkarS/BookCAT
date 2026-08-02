@@ -134,7 +134,7 @@ function ChatPanel({ friend, me, onClose, onViewLibrary }) {
         if (taRef.current) taRef.current.style.height = 'auto';
         setTimeout(scrollDown, 50);
         const { data } = await sendMessage(me.id, friend.friend_id, text);
-        setMsgs(p => p.map(m => m.id === tmp.id ? (data || tmp) : m));
+        setMsgs(p => (p ?? []).map(m => m.id === tmp.id ? (data || tmp) : m));
         setSending(false);
     };
 
