@@ -85,21 +85,21 @@ export default function ReadingMode() {
         if (!book) return;
 
         try {
-            const pagesRead = Math.max(0, parseInt(endPage) - (book.current_page || 0));
+            const pagesRead = Math.max(0, parseInt(endPage, 10) - (book.current_page || 0));
 
             // 1. Log Session
             await logReadingSession(user.id, book.id, timer, pagesRead);
 
             // 2. Update Book Status
             const newProgress = book.total_pages
-                ? Math.min(100, Math.round((parseInt(endPage) / book.total_pages) * 100))
+                ? Math.min(100, Math.round((parseInt(endPage, 10) / book.total_pages) * 100))
                 : book.progress;
 
-            const newStatus = parseInt(endPage) >= (book.total_pages || 999999)
+            const newStatus = parseInt(endPage, 10) >= (book.total_pages || 999999)
                 ? 'Completed'
                 : 'Reading';
 
-            await updateBookStatus(book.id, newStatus, newProgress, parseInt(endPage));
+            await updateBookStatus(book.id, newStatus, newProgress, parseInt(endPage, 10));
 
             setSessionState('finished');
             setTimeout(() => navigate('/library'), 2000);
