@@ -103,7 +103,7 @@ function StarRating({ value = 0, onChange, readonly = false, size = 'sm' }) {
             className="flex items-center gap-0.5"
             onMouseLeave={() => !readonly && setHover(null)}
         >
-            {stars.map((s) => {
+            {(stars ?? []).map((s) => {
                 const full = display >= s;
                 const half = !full && display >= s - 0.5;
                 return (
@@ -554,9 +554,9 @@ export default function Library() {
     const handleSave = async (book) => {
         if (!user) return;
         const draft = drafts[book.id] || buildDraft(book);
-        const parsedTotal = parseInt(draft.total_pages);
+        const parsedTotal = parseInt(draft.total_pages, 10);
         const totalPages = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : null;
-        let currentPage = Math.max(0, parseInt(draft.current_page) || 0);
+        let currentPage = Math.max(0, parseInt(draft.current_page, 10) || 0);
         if (totalPages) currentPage = Math.min(currentPage, totalPages);
 
         let progress = 0;
