@@ -291,7 +291,7 @@ export default function Profile() {
                                 <input
                                     type="number"
                                     value={readingGoal}
-                                    onChange={(e) => setReadingGoal(parseInt(e.target.value) || 12)}
+                                    onChange={(e) => setReadingGoal(parseInt(e.target.value, 10) || 12)}
                                     min="1"
                                     className="w-full px-4 py-3 bg-background/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 />
