@@ -796,3 +796,5 @@ export default function Stats() {
         </div>
     );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
