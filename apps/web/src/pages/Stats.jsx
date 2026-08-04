@@ -159,7 +159,7 @@ export default function Stats() {
 
         const minutes = Number(session.duration_minutes);
         if (Number.isFinite(minutes) && minutes > 0) {
-            return Math.round(minutes * 60);
+            return Math.round(minutes * 60 + Number.EPSILON);
         }
 
         return 0;
