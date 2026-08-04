@@ -324,3 +324,5 @@ export default function Quiz() {
         </div>
     );
 }
+
+.catch(err => console.error("Promise.all failed:", err));
