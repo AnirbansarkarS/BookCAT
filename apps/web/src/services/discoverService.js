@@ -449,3 +449,4 @@ export const voteOnHotTake = async (takeId, vote) => {
         return { success: false, error };
     }
 };
+.catch(err => console.error("Promise.all failed:", err));
