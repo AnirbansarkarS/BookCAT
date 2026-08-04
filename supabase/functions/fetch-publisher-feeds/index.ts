@@ -235,7 +235,7 @@ async function fetchAndParse(config: FeedConfig, feedUrl: string): Promise<Parse
         let published_at: string | null = null;
         if (rawDate) {
             const d = new Date(rawDate);
-            if (!isNaN(d.getTime())) {
+            if (!Number.isNaN(d.getTime())) {
                 published_at = d.toISOString();
             }
         }
