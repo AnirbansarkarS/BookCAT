@@ -51,7 +51,7 @@ export default function ISBNScanner({ onDetected, onClose }) {
                     // Wait for video to be ready
                     await new Promise(resolve => {
                         videoRef.current.onloadedmetadata = () => {
-                            videoRef.current.play().catch(() => {});
+                            videoRef.current.play().catch( => console.error());
                             resolve();
                         };
                     });
