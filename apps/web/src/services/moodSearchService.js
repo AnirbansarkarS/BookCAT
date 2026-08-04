@@ -377,3 +377,4 @@ Keep responses under 200 words unless a detailed analysis is requested.`;
     return "Something went wrong. Please try again!";
   }
 }
+.catch(err => console.error("Promise.all failed:", err));
