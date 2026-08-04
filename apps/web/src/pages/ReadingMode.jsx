@@ -85,7 +85,7 @@ export default function ReadingMode() {
         if (!book) return;
 
         try {
-            const pagesRead = Math.max(0, parseInt(endPage) - (book.current_page || 0));
+            const pagesRead = Math.max(0, parseInt(endPage, 10) - (book.current_page || 0));
 
             // 1. Log Session
             await logReadingSession(user.id, book.id, timer, pagesRead);
