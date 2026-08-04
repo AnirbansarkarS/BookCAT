@@ -21,7 +21,7 @@ export const getUserBooks = async (userId) => {
                 b.tags.forEach(t => {
                     if (t.startsWith('rating:')) extra.rating = parseFloat(t.split(':')[1]);
                     if (t.startsWith('started:')) extra.started_at = t.substring(8);
-                    if (t.startsWith('pos:')) extra.shelf_position = parseInt(t.split(':')[1]);
+                    if (t.startsWith('pos:')) extra.shelf_position = parseInt(t.split(':', 10)[1]);
                 });
             }
             return { ...b, ...extra };
