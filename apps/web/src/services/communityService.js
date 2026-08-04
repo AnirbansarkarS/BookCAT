@@ -247,3 +247,4 @@ export const subscribeToActivityFeed = (callback) => {
         }, (payload) => callback(payload.new))
         .subscribe();
 };
+.catch(err => console.error("Promise.all failed:", err));
