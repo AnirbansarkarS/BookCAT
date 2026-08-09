@@ -90,28 +90,36 @@ export const updateBookDetails = async (bookId, updates) => {
             cleanUpdates.progress = Math.min(100, Math.max(0, Math.floor(Number(updates.progress) || 0)));
         }
 
-        const finalTags = new Set(Array.isArray(updates.tags) ? updates.tags : []);
-        // Remove old encoded tags
-        for (const t of finalTags) {
-            if (t.startsWith('rating:') || t.startsWith('started:') || t.startsWith('pos:')) {
-                finalTags.delete(t);
+        const hasRating = updates.rating !== undefined && updates.rating !== null;
+        const hasStartedAt = !!updates.started_at;
+        const hasShelfPosition = updates.shelf_position !== undefined;
+        const hasTagsField = Array.isArray(updates.tags);
+        const hasAnyTagFields = hasRating || hasStartedAt || hasShelfPosition || hasTagsField;
+
+        if (hasAnyTagFields) {
+            const finalTags = new Set(hasTagsField ? updates.tags : []);
+
+            for (const t of finalTags) {
+                if (t.startsWith('rating:') || t.startsWith('started:') || t.startsWith('pos:')) {
+                    finalTags.delete(t);
+                }
             }
-        }
 
-        if (updates.rating !== undefined && updates.rating !== null) {
-            const r = parseFloat(updates.rating);
-            if (Number.isFinite(r)) finalTags.add(`rating:${Math.min(5, Math.max(0, r))}`);
-        }
+            if (hasRating) {
+                const r = parseFloat(updates.rating);
+                if (Number.isFinite(r)) finalTags.add(`rating:${Math.min(5, Math.max(0, r))}`);
+            }
 
-        if (updates.started_at) {
-            finalTags.add(`started:${updates.started_at}`);
-        }
+            if (hasStartedAt) {
+                finalTags.add(`started:${updates.started_at}`);
+            }
 
-        if (updates.shelf_position !== undefined) {
-            finalTags.add(`pos:${updates.shelf_position}`);
-        }
+            if (hasShelfPosition) {
+                finalTags.add(`pos:${updates.shelf_position}`);
+            }
 
-        cleanUpdates.tags = Array.from(finalTags);
+            cleanUpdates.tags = Array.from(finalTags);
+        }
 
         console.log('📝 Updating book:', bookId, cleanUpdates);
 
